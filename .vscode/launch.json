@@ -7,7 +7,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${file}",
-            "args": ["./test/abc"]
+            "args": ["./testfolder"]
         }
     ]
 }
