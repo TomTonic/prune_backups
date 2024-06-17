@@ -7,7 +7,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${file}",
-            "args": ["./testfolder"]
+            "args": [ "-test", "-dir=C:\\temp\\testfolder"]
         }
     ]
 }
