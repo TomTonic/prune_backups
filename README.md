@@ -69,6 +69,8 @@ prune_backups -dir=$my_backup_storage_dir
 # rm -rf $my_backup_storage_dir/to_delete
 ```
 
+(You would run this script hourly via cron on your backup server to backup your web server.)
+
 ## What is the exact naming pattern? And how do I change this?
 
 The exact naming pattern is YYYY-MM-DD_HH-mm, where
