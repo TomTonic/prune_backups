@@ -44,6 +44,31 @@ Download the code and run "go build prune_backups.go" once. This will build a pl
 
 Example: `prune_backups -dir=/mnt/backups`
 
+Longer Example (with context):
+
+```Shell
+#!/bin/sh
+
+my_backup_storage_dir=/srv/backup/mywebserver
+current_snapshot_dir=$(date +%Y-%m-%d_%H-%M)
+
+rsync -avR --checksum --delete --link-dest=$my_backup_storage_dir/latest backupuser@mywebserver.example.com:/var/www $my_backup_storage_dir/_$current_snapshot_dir
+
+cd $my_backup_storage_dir
+
+# to make sure we can identify incomplete backups by their directory name, we started the directory name with an underscore character (_). now rename it to indicate it was complete.
+mv _$current_snapshot_dir $current_snapshot_dir
+
+# make the latest snapshot easily referable
+ln -nsf $current_snapshot_dir latest
+
+# prune old backups
+prune_backups -dir=$my_backup_storage_dir
+
+# uncomment the following line if you really want to delete the old backups
+# rm -rf $my_backup_storage_dir/to_delete
+```
+
 ## What is the exact naming pattern? And how do I change this?
 
 The exact naming pattern is YYYY-MM-DD_HH-mm, where
