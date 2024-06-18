@@ -228,8 +228,6 @@ func Test_pruneDirectory(t *testing.T) {
 
 	test_dir := generateTestDirectories(t, test_time_gen, 2800)
 
-	pruneDirectory(test_dir, test_time_prune, "to_delete", 0)
-
 	want := []string{
 		// when sorting lexographically descending, the to_delete directory will be the first
 		"to_delete",
@@ -246,27 +244,36 @@ func Test_pruneDirectory(t *testing.T) {
 		"2024-04-30_23-49", "2024-03-31_23-49", "2024-02-29_23-49",
 	}
 
-	result := getAllDirectories(test_dir, t)
-
-	sort.Sort(sort.Reverse(sort.StringSlice(result)))
-
-	if !reflect.DeepEqual(result, want) {
-		t.Errorf("Remaining directories not as expected!")
-		compareArrays(result, want, t)
-	}
-
-	deleted := getAllDirectories(filepath.Join(test_dir, "to_delete"), t)
 	wanted_number_of_deleted := 2800 - 24 - 30 - 3 // please nothe that the to_delete-directory will not be moved!
-	got_number_of_deleted := len(deleted)
-	if wanted_number_of_deleted != got_number_of_deleted {
-		t.Errorf("Number of deleted directories not as expected: wanted=%v, got=%v", wanted_number_of_deleted, got_number_of_deleted)
-	}
+
+	pruneAndCheck(t, test_dir, test_time_prune, want, wanted_number_of_deleted)
 
 	defer os.RemoveAll(test_dir) // clean up
 
 }
 
-func getAllDirectories(dir string, t *testing.T) []string {
+func pruneAndCheck(t *testing.T, test_dir string, test_time_pruning time.Time, expect_remaining []string, number_expect_deleted int) {
+	pruneDirectory(test_dir, test_time_pruning, "to_delete", 0)
+
+	// get resulting directories and sort descending
+	result := getAllDirectories(t, test_dir)
+	sort.Sort(sort.Reverse(sort.StringSlice(result)))
+
+	// compare result to expect_remaining
+	if !reflect.DeepEqual(result, expect_remaining) {
+		t.Errorf("Remaining directories not as expected!")
+		compareArrays(result, expect_remaining, t)
+	}
+
+	// compare count of deleted directories
+	deleted := getAllDirectories(t, filepath.Join(test_dir, "to_delete"))
+	got_number_of_deleted := len(deleted)
+	if number_expect_deleted != got_number_of_deleted {
+		t.Errorf("Number of deleted directories not as expected: wanted=%v, got=%v", number_expect_deleted, got_number_of_deleted)
+	}
+}
+
+func getAllDirectories(t *testing.T, dir string) []string {
 	all_entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal("Error reading temporary directory: ", err)
