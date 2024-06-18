@@ -1,4 +1,4 @@
-# prune_backups
+# prune_backups [![Go](https://github.com/TomTonic/prune_backups/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/TomTonic/prune_backups/actions/workflows/go.yml)
 
 A small tool to prune a bunch of backup directories to the typical pattern of one per hour for a day, one per day for a month, and then one per month.
 
