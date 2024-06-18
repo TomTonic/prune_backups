@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "GOOS=windows GOARCH=amd64 go build -o bin/myprogram.exe -ldflags \"-X main.version=$(git describe --tags)\"",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
+
