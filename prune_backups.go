@@ -17,9 +17,11 @@ var commit_info = func() string {
 	var vcs_time = "<unknown>"
 	var vcs_modified = "<unknown>"
 	if info, ok := debug.ReadBuildInfo(); ok {
-		if info.Main.Version != "" {
-			// version = info.Main.Version // currently (Go 1.22.*) always returns "(devel)" - so ignore it. wait for https://github.com/golang/go/issues/50603 (ETA Go 1.24)
-		}
+		/*
+			if info.Main.Version != "" {
+				version = info.Main.Version // currently (Go 1.22.*) always returns "(devel)" - so ignore it. wait for https://github.com/golang/go/issues/50603 (ETA Go 1.24)
+			}
+		*/
 		for _, setting := range info.Settings {
 			if setting.Key == "vcs.revision" {
 				vcs_revision = setting.Value
