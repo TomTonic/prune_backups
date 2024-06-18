@@ -4,12 +4,21 @@
         {
             "label": "Build",
             "type": "shell",
-            "command": "GOOS=windows GOARCH=amd64 go build -o bin/myprogram.exe -ldflags \"-X main.version=$(git describe --tags)\"",
+            "command": "go build -o bin/prune_backups-amd64-windows.exe",
+            "options": {
+                "env": {
+                    "GOOS": "windows",
+                    "GOARCH": "amd64"
+                }
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
         }
-    ]
+    ],
 }
-
