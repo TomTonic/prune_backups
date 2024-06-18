@@ -222,11 +222,11 @@ func compareArrays(result []string, want []string, t *testing.T) {
 	}
 }
 
-func Test_pruneDirectory(t *testing.T) {
+func Test_pruneDirectoryHourlyForFourMonths(t *testing.T) {
 	test_time_gen := time.Date(2024, 6, 17, 9, 49, 33, 0, time.UTC)
 	test_time_prune := time.Date(2024, 6, 17, 9, 54, 21, 0, time.UTC)
 
-	test_dir := generateTestDirectories(t, test_time_gen, 2800)
+	test_dir := generateHourlyTestDirectories(t, test_time_gen, 2800)
 
 	want := []string{
 		// when sorting lexographically descending, the to_delete directory will be the first
@@ -249,7 +249,45 @@ func Test_pruneDirectory(t *testing.T) {
 	pruneAndCheck(t, test_dir, test_time_prune, want, wanted_number_of_deleted)
 
 	defer os.RemoveAll(test_dir) // clean up
+}
 
+func Test_pruneDirectoryYesterdayMissing(t *testing.T) {
+	test_time_prune := time.Date(2024, 6, 17, 9, 54, 21, 0, time.UTC)
+
+	given := []string{
+		// some hourly backups for the 17th
+		"2024-06-17_09-49", "2024-06-17_06-49", "2024-06-17_00-49",
+		// no hourly backups within the lase 24h on the 16th
+		// but an hourly backup before the 24h time window
+		"2024-06-16_03-49", "2024-06-16_02-49", "2024-06-16_01-49",
+		// and some normal daily backups to prune
+		"2024-06-15_23-49", "2024-06-15_13-49",
+		"2024-06-14_23-49",
+		"2024-06-13_23-49", "2024-06-13_22-49", "2024-06-13_21-49",
+	}
+
+	test_dir := generateTestDirectories(t, given)
+
+	wanted := []string{
+		// when sorting lexographically descending, the to_delete directory will be the first
+		"to_delete",
+		// 24 for the hours
+		// some hourly backups for the 17th
+		"2024-06-17_09-49", "2024-06-17_06-49", "2024-06-17_00-49",
+		// no hourly backups within the lase 24h on the 16th
+		// but keep the newest from the 16th
+		"2024-06-16_03-49",
+		// and some normal daily backups to prune
+		"2024-06-15_23-49",
+		"2024-06-14_23-49",
+		"2024-06-13_23-49",
+	}
+
+	wanted_number_of_deleted := 5 // please nothe that the to_delete-directory will not be moved!
+
+	pruneAndCheck(t, test_dir, test_time_prune, wanted, wanted_number_of_deleted)
+
+	defer os.RemoveAll(test_dir) // clean up
 }
 
 func pruneAndCheck(t *testing.T, test_dir string, test_time_pruning time.Time, expect_remaining []string, number_expect_deleted int) {
@@ -288,7 +326,9 @@ func getAllDirectories(t *testing.T, dir string) []string {
 	return result
 }
 
-func generateTestDirectories(t *testing.T, test_time time.Time, number int) string {
+const USE_DEFAULT_DIRECTORY_FOR_TEMP_FILES = "" // see https://pkg.go.dev/os#MkdirTemp
+
+func generateHourlyTestDirectories(t *testing.T, test_time time.Time, number int) string {
 
 	/*
 		_, err := os.ReadDir(dirPath)
@@ -303,7 +343,6 @@ func generateTestDirectories(t *testing.T, test_time time.Time, number int) stri
 		}
 	*/
 
-	const USE_DEFAULT_DIRECTORY_FOR_TEMP_FILES = "" // see https://pkg.go.dev/os#MkdirTemp
 	var dir string
 
 	dir, err := os.MkdirTemp(USE_DEFAULT_DIRECTORY_FOR_TEMP_FILES, "prune_backups_testdir")
@@ -314,6 +353,25 @@ func generateTestDirectories(t *testing.T, test_time time.Time, number int) stri
 	for i := 0; i < number; i++ {
 		next := test_time.Add(time.Duration(-i) * time.Hour)
 		subDir := next.Format("2006-01-02_15-04")
+		fullPath := filepath.Join(dir, subDir)
+		err2 := os.MkdirAll(fullPath, 0755)
+		if err2 != nil {
+			t.Fatal("Error creating child in temporary directory: ", err2)
+		}
+	}
+
+	return dir
+}
+
+func generateTestDirectories(t *testing.T, directories []string) string {
+	var dir string
+
+	dir, err := os.MkdirTemp(USE_DEFAULT_DIRECTORY_FOR_TEMP_FILES, "prune_backups_testdir")
+	if err != nil {
+		t.Fatal("Error creating temporary directory: ", err)
+	}
+
+	for _, subDir := range directories {
 		fullPath := filepath.Join(dir, subDir)
 		err2 := os.MkdirAll(fullPath, 0755)
 		if err2 != nil {
