@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -143,7 +144,7 @@ func isFlagPassed(name string) bool {
 }
 
 func getAllButFirstMatchingPrefix(from []string, prefix string) []string {
-	var result []string
+	var result = []string{} // make sure it's not nil
 	var first = true
 	for _, s := range from {
 		if strings.HasPrefix(s, prefix) {
@@ -158,7 +159,7 @@ func getAllButFirstMatchingPrefix(from []string, prefix string) []string {
 }
 
 func getAllMatchingPrefix(from []string, prefix string) []string {
-	var result []string
+	var result = []string{} // make sure it's not nil
 	for _, s := range from {
 		if strings.HasPrefix(s, prefix) {
 			result = append(result, s)
@@ -169,7 +170,7 @@ func getAllMatchingPrefix(from []string, prefix string) []string {
 
 func createPrefixesForTimeSlotsToKeepOne(current time.Time) []string {
 	// Create an array to hold the prefixes
-	prefixes := make([]string, 24+30+120)
+	prefixes := make([]string, 24+30+119)
 
 	// Generate the timestamps
 	for i := 0; i < 24; i++ {
@@ -191,15 +192,19 @@ func createPrefixesForTimeSlotsToKeepOne(current time.Time) []string {
 		current = current.Add(-24 * time.Hour)
 	}
 
-	// Subtract one month from the current timestamp
-	current = current.AddDate(0, -1, 0)
+	// don't use AddDate(0, -1, 0) as this function does not work as expected when we're on a March, 29th in a non-leap-year, e.g.
+	// use simpler and more robust approach, as from now on we don't need (leap-) days arithmetics anyhow
 
-	for i := 24 + 30; i < 24+30+120; i++ {
+	var year int = current.Year()
+	var month int = (int)(current.Month())
+
+	// we already keep the days of the 30 days leaping into the current month, so we continue with the next month
+	prevMonth(&year, &month)
+
+	for i := 24 + 30; i < 24+30+119; i++ {
 		// Format the time in the format YYYY-MM
-		prefixes[i] = current.Format("2006-01")
-
-		// Subtract one month from the current timestamp
-		current = current.AddDate(0, -1, 0)
+		prefixes[i] = toDateStr(year, month)
+		prevMonth(&year, &month)
 	}
 
 	/*
@@ -209,6 +214,22 @@ func createPrefixesForTimeSlotsToKeepOne(current time.Time) []string {
 	*/
 
 	return prefixes
+}
+
+func prevMonth(year *int, month *int) {
+	*month--
+	if *month <= 0 {
+		*month = 12
+		*year--
+	}
+}
+
+func toDateStr(year int, month int) string {
+	if month < 10 {
+		return strconv.Itoa(year) + "-0" + strconv.Itoa(month)
+	} else {
+		return strconv.Itoa(year) + "-" + strconv.Itoa(month)
+	}
 }
 
 func createPrefixesForTimeSlotsToKeepNone(current time.Time) []string {
