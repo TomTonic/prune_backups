@@ -228,7 +228,7 @@ func Test_pruneDirectory(t *testing.T) {
 
 	test_dir := generateTestDirectories(t, test_time_gen, 2800)
 
-	pruneDirectory(test_dir, test_time_prune, "to_delete")
+	pruneDirectory(test_dir, test_time_prune, "to_delete", 0)
 
 	want := []string{
 		// when sorting lexographically descending, the to_delete directory will be the first

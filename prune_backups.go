@@ -45,6 +45,7 @@ func main() {
 	pruneDirName := flag.String("dir", "<none>", "REQUIRED. The name of the directory that shall be pruned.")
 	toDeleteDirName := flag.String("to_directory", "to_delete", "OPTIONAL. The name of the directory where the pruned directories shall be moved.")
 	showVersion := flag.Bool("version", false, "OPTIONAL. Show version/build information and exit if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
+	verbosity := flag.Int("v", 1, "OPTIONAL. Set verbosity. O - mute, 1 - some, 2 - a lot.")
 
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Parse()
@@ -63,10 +64,10 @@ func main() {
 
 	now := time.Now()
 
-	pruneDirectory(*pruneDirName, now, *toDeleteDirName)
+	pruneDirectory(*pruneDirName, now, *toDeleteDirName, *verbosity)
 }
 
-func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string) {
+func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, verbosity int) {
 	files, err := os.ReadDir(pruneDirName)
 	if err != nil {
 		fmt.Print("Could not read pruning directory (-dir): ")
@@ -81,7 +82,9 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string) 
 			dirs = append(dirs, file.Name())
 		}
 	}
-	fmt.Println("I found", len(dirs), "directories in", pruneDirName)
+	if verbosity > 0 {
+		fmt.Println("I found", len(dirs), "directories in", pruneDirName)
+	}
 
 	// Sort in descending order - caution: this is important for the algorithm!
 	sort.Sort(sort.Reverse(sort.StringSlice(dirs)))
@@ -105,9 +108,11 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string) 
 	if err2 != nil {
 		fmt.Print("Error creating directory \"", delPath, "\": ")
 		fmt.Println(err)
-		fmt.Println("I woud have moved the following directories there:")
-		for _, dir := range to_delete {
-			fmt.Println(" -", dir)
+		if verbosity > 0 {
+			fmt.Println("I woud have moved the following directories there:")
+			for _, dir := range to_delete {
+				fmt.Println(" -", dir)
+			}
 		}
 		os.Exit(1)
 	}
@@ -117,16 +122,26 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string) 
 	for _, dirname := range to_delete {
 		fromPath := filepath.Join(pruneDirName, dirname)
 		toPath := filepath.Join(delPath, dirname)
-		fmt.Print("Moving ", fromPath, " to ", toPath, "... ")
+		if verbosity > 1 {
+			fmt.Print("Moving ", fromPath, " to ", toPath, "... ")
+		}
 		err3 := os.Rename(fromPath, toPath)
 		if err3 != nil {
-			fmt.Println(err)
+			if verbosity > 1 {
+				fmt.Println(err)
+			} else {
+				fmt.Println("Error moving ", fromPath, " to ", toPath, ": ", err)
+			}
 		} else {
-			fmt.Println("done.")
+			if verbosity > 1 {
+				fmt.Println("done.")
+			}
 			successful_move_counter++
 		}
 	}
-	fmt.Println("I moved", successful_move_counter, "directories to", delPath)
+	if verbosity > 0 {
+		fmt.Println("I moved", successful_move_counter, "directories to", delPath)
+	}
 }
 
 func isFlagPassed(name string) bool {
