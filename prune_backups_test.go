@@ -1,7 +1,10 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 )
@@ -198,19 +201,118 @@ func Test_createPrefixesForTimeSlotsToKeepOne(t *testing.T) {
 
 	if !reflect.DeepEqual(result, want) {
 		t.Errorf("getAllButFirstMatchingPrefix() result not as expected!")
-		max := len(result)
-		if len(want) > max {
-			max = len(want)
+		compareArrays(result, want, t)
+	}
+
+}
+
+func compareArrays(result []string, want []string, t *testing.T) {
+	max := len(result)
+	if len(want) > max {
+		max = len(want)
+	}
+	for i := 0; i < max; i++ {
+		if i < len(want) && i < len(result) {
+			t.Errorf("   wanted: " + want[i] + ", got: " + result[i])
+		} else if i < len(want) {
+			t.Errorf("   wanted: " + want[i] + ", got: <no more values>")
+		} else {
+			t.Errorf("   wanted: <no more values>, got: " + result[i])
 		}
-		for i := 0; i < max; i++ {
-			if i < len(want) && i < len(result) {
-				t.Errorf("   wanted: " + want[i] + ", got: " + result[i])
-			} else if i < len(want) {
-				t.Errorf("   wanted: " + want[i] + ", got: <no more values>")
-			} else {
-				t.Errorf("   wanted: <no more values>, got: " + result[i])
+	}
+}
+
+func Test_pruneDirectory(t *testing.T) {
+	test_time_gen := time.Date(2024, 6, 17, 9, 49, 33, 0, time.UTC)
+	test_time_prune := time.Date(2024, 6, 17, 9, 54, 21, 0, time.UTC)
+
+	test_dir := generateTestDirectories(t, test_time_gen, 2800)
+
+	pruneDirectory(test_dir, test_time_prune, "to_delete")
+
+	want := []string{
+		// when sorting lexographically descending, the to_delete directory will be the first
+		"to_delete",
+		// 24 for the hours
+		"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49", "2024-06-17_06-49", "2024-06-17_05-49", "2024-06-17_04-49",
+		"2024-06-17_03-49", "2024-06-17_02-49", "2024-06-17_01-49", "2024-06-17_00-49", "2024-06-16_23-49", "2024-06-16_22-49",
+		"2024-06-16_21-49", "2024-06-16_20-49", "2024-06-16_19-49", "2024-06-16_18-49", "2024-06-16_17-49", "2024-06-16_16-49",
+		"2024-06-16_15-49", "2024-06-16_14-49", "2024-06-16_13-49", "2024-06-16_12-49", "2024-06-16_11-49", "2024-06-16_10-49",
+		// 30 for the days
+		"2024-06-15_23-49", "2024-06-14_23-49", "2024-06-13_23-49", "2024-06-12_23-49", "2024-06-11_23-49", "2024-06-10_23-49", "2024-06-09_23-49", "2024-06-08_23-49", "2024-06-07_23-49", "2024-06-06_23-49",
+		"2024-06-05_23-49", "2024-06-04_23-49", "2024-06-03_23-49", "2024-06-02_23-49", "2024-06-01_23-49", "2024-05-31_23-49", "2024-05-30_23-49", "2024-05-29_23-49", "2024-05-28_23-49", "2024-05-27_23-49",
+		"2024-05-26_23-49", "2024-05-25_23-49", "2024-05-24_23-49", "2024-05-23_23-49", "2024-05-22_23-49", "2024-05-21_23-49", "2024-05-20_23-49", "2024-05-19_23-49", "2024-05-18_23-49", "2024-05-17_23-49",
+		// 3 for the months
+		"2024-04-30_23-49", "2024-03-31_23-49", "2024-02-29_23-49",
+	}
+
+	result := getAllDirectories(test_dir, t)
+
+	sort.Sort(sort.Reverse(sort.StringSlice(result)))
+
+	if !reflect.DeepEqual(result, want) {
+		t.Errorf("Remaining directories not as expected!")
+		compareArrays(result, want, t)
+	}
+
+	deleted := getAllDirectories(filepath.Join(test_dir, "to_delete"), t)
+	wanted_number_of_deleted := 2800 - 24 - 30 - 3 // please nothe that the to_delete-directory will not be moved!
+	got_number_of_deleted := len(deleted)
+	if wanted_number_of_deleted != got_number_of_deleted {
+		t.Errorf("Number of deleted directories not as expected: wanted=%v, got=%v", wanted_number_of_deleted, got_number_of_deleted)
+	}
+
+	defer os.RemoveAll(test_dir) // clean up
+
+}
+
+func getAllDirectories(dir string, t *testing.T) []string {
+	all_entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal("Error reading temporary directory: ", err)
+	}
+
+	var result []string
+	for _, file := range all_entries {
+		if file.IsDir() {
+			result = append(result, file.Name())
+		}
+	}
+	return result
+}
+
+func generateTestDirectories(t *testing.T, test_time time.Time, number int) string {
+
+	/*
+		_, err := os.ReadDir(dirPath)
+		if err != nil {
+			// The second argument is the permission mode.
+			// 0755 commonly used for directories.
+			err := os.MkdirAll(dirPath, 0755)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
 			}
+		}
+	*/
+
+	const USE_DEFAULT_DIRECTORY_FOR_TEMP_FILES = "" // see https://pkg.go.dev/os#MkdirTemp
+	var dir string
+
+	dir, err := os.MkdirTemp(USE_DEFAULT_DIRECTORY_FOR_TEMP_FILES, "prune_backups_testdir")
+	if err != nil {
+		t.Fatal("Error creating temporary directory: ", err)
+	}
+
+	for i := 0; i < number; i++ {
+		next := test_time.Add(time.Duration(-i) * time.Hour)
+		subDir := next.Format("2006-01-02_15-04")
+		fullPath := filepath.Join(dir, subDir)
+		err2 := os.MkdirAll(fullPath, 0755)
+		if err2 != nil {
+			t.Fatal("Error creating child in temporary directory: ", err2)
 		}
 	}
 
+	return dir
 }

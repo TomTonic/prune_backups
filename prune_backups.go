@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var commit_info = func() string {
+var commitInfo = func() string {
 	//var version = "<unknown>"
 	var vcs_revision = "<unknown>"
 	var vcs_time = "<unknown>"
@@ -44,14 +44,13 @@ func main() {
 
 	pruneDirName := flag.String("dir", "<none>", "REQUIRED. The name of the directory that shall be pruned.")
 	toDeleteDirName := flag.String("to_directory", "to_delete", "OPTIONAL. The name of the directory where the pruned directories shall be moved.")
-	doTest := flag.Bool("test", false, "OPTIONAL. Generate test directories and prune them afterwards if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
-	showVersion := flag.Bool("version", false, "OPTIONAL. Show version/build information and exit if `true`. (default false)")     // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
+	showVersion := flag.Bool("version", false, "OPTIONAL. Show version/build information and exit if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
 
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Println("prune_backups", commit_info)
+		fmt.Println("prune_backups", commitInfo)
 		os.Exit(0)
 	}
 
@@ -62,14 +61,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// generates 2800 hourly directories (24h x 30d x 4months)
-	if *doTest {
-		generateTestDirectories(*pruneDirName, 2800)
-	}
+	now := time.Now()
 
-	/* Reading and filtering directories */
+	pruneDirectory(*pruneDirName, now, *toDeleteDirName)
+}
 
-	files, err := os.ReadDir(*pruneDirName)
+func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string) {
+	files, err := os.ReadDir(pruneDirName)
 	if err != nil {
 		fmt.Print("Could not read pruning directory (-dir): ")
 		fmt.Println(err)
@@ -83,12 +81,11 @@ func main() {
 			dirs = append(dirs, file.Name())
 		}
 	}
-	fmt.Println("I found", len(dirs), "directories in", *pruneDirName)
+	fmt.Println("I found", len(dirs), "directories in", pruneDirName)
 
 	// Sort in descending order - caution: this is important for the algorithm!
 	sort.Sort(sort.Reverse(sort.StringSlice(dirs)))
 
-	now := time.Now()
 	var to_delete []string // in this array we will collect all directories that we will move to the to_delete-directory
 
 	prefixesForTimeSlotsToKeepOne := createPrefixesForTimeSlotsToKeepOne(now)
@@ -103,9 +100,7 @@ func main() {
 		to_delete = append(to_delete, add_to_delete...)
 	}
 
-	/* now we have collected all directory names that need to be moved in to_delete. next we will create the target directory and actually move them */
-
-	delPath := filepath.Join(*pruneDirName, *toDeleteDirName)
+	delPath := filepath.Join(pruneDirName, toDeleteDirName)
 	err2 := os.MkdirAll(delPath, 0755)
 	if err2 != nil {
 		fmt.Print("Error creating directory \"", delPath, "\": ")
@@ -117,9 +112,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	/* now we have collected all directory names that need to be moved in to_delete. next we will create the target directory and actually move them */
 	var successful_move_counter = 0
 	for _, dirname := range to_delete {
-		fromPath := filepath.Join(*pruneDirName, dirname)
+		fromPath := filepath.Join(pruneDirName, dirname)
 		toPath := filepath.Join(delPath, dirname)
 		fmt.Print("Moving ", fromPath, " to ", toPath, "... ")
 		err3 := os.Rename(fromPath, toPath)
@@ -263,31 +259,4 @@ func createPrefixesForTimeSlotsToKeepNone(current time.Time) []string {
 		}
 	*/
 	return prefixes
-}
-
-func generateTestDirectories(dirPath string, number int) {
-
-	_, err := os.ReadDir(dirPath)
-	if err != nil {
-		fmt.Println(err)
-		fmt.Println("Trying to create it...")
-		// The second argument is the permission mode.
-		// 0755 commonly used for directories.
-		err := os.MkdirAll(dirPath, 0755)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}
-
-	now := time.Now()
-	for i := 0; i < number; i++ {
-		t := now.Add(time.Duration(-i) * time.Hour)
-		subDir := t.Format("2006-01-02_15-04")
-		fullPath := filepath.Join(dirPath, subDir)
-		err := os.MkdirAll(fullPath, 0755)
-		if err != nil {
-			fmt.Println(err)
-		}
-	}
 }
