@@ -5,10 +5,35 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
 )
+
+var commit_info = func() string {
+	//var version = "<unknown>"
+	var vcs_revision = "<unknown>"
+	var vcs_time = "<unknown>"
+	var vcs_modified = "<unknown>"
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" {
+			// version = info.Main.Version // currently (Go 1.22.*) always returns "(devel)" - so ignore it. wait for https://github.com/golang/go/issues/50603 (ETA Go 1.24)
+		}
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				vcs_revision = setting.Value
+			}
+			if setting.Key == "vcs.time" {
+				vcs_time = setting.Value
+			}
+			if setting.Key == "vcs.modified" {
+				vcs_modified = setting.Value
+			}
+		}
+	}
+	return "rev " + vcs_revision + " from " + vcs_time + ", modified=" + vcs_modified
+}()
 
 func main() {
 
@@ -17,9 +42,15 @@ func main() {
 	pruneDirName := flag.String("dir", "<none>", "REQUIRED. The name of the directory that shall be pruned.")
 	toDeleteDirName := flag.String("to_directory", "to_delete", "OPTIONAL. The name of the directory where the pruned directories shall be moved.")
 	doTest := flag.Bool("test", false, "OPTIONAL. Generate test directories and prune them afterwards if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
+	showVersion := flag.Bool("version", false, "OPTIONAL. Show version/build information and exit if `true`. (default false)")     // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
 
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("prune_backups", commit_info)
+		os.Exit(0)
+	}
 
 	// workaroud as REQUIRED parameters are not supported by the flag package
 	if !isFlagPassed("dir") {
