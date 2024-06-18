@@ -2,7 +2,18 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build",
+            "label": "Build x86 Windows",
+            "type": "shell",
+            "command": "go build -o bin/prune_backups-x86-windows.exe",
+            "options": {
+                "env": {
+                    "GOOS": "windows",
+                    "GOARCH": "386"
+                }
+            }
+        },
+        {
+            "label": "Build AMD64 Windows",
             "type": "shell",
             "command": "go build -o bin/prune_backups-amd64-windows.exe",
             "options": {
@@ -10,15 +21,102 @@
                     "GOOS": "windows",
                     "GOARCH": "amd64"
                 }
-            },
+            }
+        },
+        {
+            "label": "Build ARM64 Windows",
+            "type": "shell",
+            "command": "go build -o bin/prune_backups-arm64-windows.exe",
+            "options": {
+                "env": {
+                    "GOOS": "windows",
+                    "GOARCH": "arm64"
+                }
+            }
+        },
+        {
+            "label": "Build x86 Linux",
+            "type": "shell",
+            "command": "go build -o bin/prune_backups-x86-linux",
+            "options": {
+                "env": {
+                    "GOOS": "linux",
+                    "GOARCH": "386"
+                }
+            }
+        },
+        {
+            "label": "Build AMD64 Linux",
+            "type": "shell",
+            "command": "go build -o bin/prune_backups-amd64-linux",
+            "options": {
+                "env": {
+                    "GOOS": "linux",
+                    "GOARCH": "amd64"
+                }
+            }
+        },
+        {
+            "label": "Build ARM32 Linux",
+            "type": "shell",
+            "command": "go build -o bin/prune_backups-arm32-linux",
+            "options": {
+                "env": {
+                    "GOOS": "linux",
+                    "GOARCH": "arm"
+                }
+            }
+        },
+        {
+            "label": "Build ARM64 Linux",
+            "type": "shell",
+            "command": "go build -o bin/prune_backups-arm64-linux",
+            "options": {
+                "env": {
+                    "GOOS": "linux",
+                    "GOARCH": "arm64"
+                }
+            }
+        },
+        {
+            "label": "Build AMD64 MacOS",
+            "type": "shell",
+            "command": "go build -o bin/prune_backups-amd64-mac",
+            "options": {
+                "env": {
+                    "GOOS": "darwin",
+                    "GOARCH": "amd64"
+                }
+            }
+        },
+        {
+            "label": "Build ARM64 MacOS",
+            "type": "shell",
+            "command": "go build -o bin/prune_backups-arm64-mac",
+            "options": {
+                "env": {
+                    "GOOS": "darwin",
+                    "GOARCH": "arm64"
+                }
+            }
+        },
+        {
+            "label": "Build all",
+            "dependsOn": [
+                "Build x86 Windows",
+                "Build AMD64 Windows",
+                "Build ARM64 Windows", 
+                "Build x86 Linux",
+                "Build AMD64 Linux",
+                "Build ARM32 Linux",
+                "Build ARM64 Linux",
+                "Build AMD64 MacOS",
+                "Build ARM64 MacOS"
+            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always"
-            },
-            "problemMatcher": []
+            }
         }
     ],
 }
