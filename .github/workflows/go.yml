@@ -15,12 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
     - name: Setup Go 1.22.x
       uses: actions/setup-go@v5
       with:
         # Semantic version range syntax or exact version of Go
         go-version: '1.22.x'
-
     - name: Build
       run: go build -v ./...
+    - name: Test with the Go CLI
+      run: go test
