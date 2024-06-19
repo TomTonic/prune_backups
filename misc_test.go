@@ -167,6 +167,7 @@ func Test_toDateStr(t *testing.T) {
 		}
 	}
 }
+
 func Test_daysInMonth(t *testing.T) {
 	tests := []struct {
 		year  int
@@ -242,5 +243,87 @@ func Test_get15thOfMonthBefore(t *testing.T) {
 				t.Errorf("Expected %v, but got %v", tc.expected, result)
 			}
 		})
+	}
+}
+
+func Test_toDateStr3(t *testing.T) {
+	type args struct {
+		year  int
+		month int
+		day   int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "Test Case 1",
+			args: args{year: 2024, month: 6, day: 16},
+			want: "2024-06-16",
+		},
+		{
+			name: "Test Case 2",
+			args: args{year: 2024, month: 11, day: 5},
+			want: "2024-11-05",
+		},
+		{
+			name: "Test Case 3",
+			args: args{year: 2024, month: 10, day: 15},
+			want: "2024-10-15",
+		},
+		{
+			name: "Test Case 4",
+			args: args{year: 2024, month: 3, day: 5},
+			want: "2024-03-05",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := toDateStr3(tt.args.year, tt.args.month, tt.args.day); got != tt.want {
+				t.Errorf("toDateStr3() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getUltimo(t *testing.T) {
+	tests := []struct {
+		year  int
+		month time.Month
+		want  time.Time
+	}{
+		{2024, time.January, time.Date(2024, time.January, 31, 0, 0, 0, 0, time.UTC)},
+		{2024, time.February, time.Date(2024, time.February, 29, 0, 0, 0, 0, time.UTC)}, // Leap year
+		{2023, time.February, time.Date(2023, time.February, 28, 0, 0, 0, 0, time.UTC)}, // Non-leap year
+		{2024, time.March, time.Date(2024, time.March, 31, 0, 0, 0, 0, time.UTC)},
+		{2024, time.April, time.Date(2024, time.April, 30, 0, 0, 0, 0, time.UTC)},
+		{2024, time.December, time.Date(2024, time.December, 31, 0, 0, 0, 0, time.UTC)},
+	}
+
+	for _, tt := range tests {
+		if got := getUltimo(tt.year, tt.month); !got.Equal(tt.want) {
+			t.Errorf("getUltimo(%d, %d) = %v, want %v", tt.year, tt.month, got, tt.want)
+		}
+	}
+}
+
+func Test_getAnyMatchingAnyPrefixes(t *testing.T) {
+	tests := []struct {
+		search_in []string
+		prefixes  []string
+		want      bool
+	}{
+		{[]string{"apple", "banana", "cherry"}, []string{"a", "b"}, true},
+		{[]string{"apple", "banana", "cherry"}, []string{"d", "e"}, false},
+		{[]string{"apple", "banana", "cherry"}, []string{"ch", "ba"}, true},
+		{[]string{}, []string{"a", "b"}, false},
+		{[]string{"apple", "banana", "cherry"}, []string{}, false},
+	}
+
+	for _, tt := range tests {
+		if got := getAnyMatchingAnyPrefixes(tt.search_in, tt.prefixes); got != tt.want {
+			t.Errorf("getAnyMatchingAnyPrefixes(%v, %v) = %v, want %v", tt.search_in, tt.prefixes, got, tt.want)
+		}
 	}
 }

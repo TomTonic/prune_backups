@@ -62,15 +62,23 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 
 	var to_delete []string // in this array we will collect all directories that we will move to the to_delete-directory
 
-	prefixesForTimeSlotsToKeepOne := createPrefixesForTimeSlotsToKeepOne(now)
-	for _, prefix := range prefixesForTimeSlotsToKeepOne {
-		add_to_delete := getAllButFirstMatchingPrefix(dirs, prefix)
-		to_delete = append(to_delete, add_to_delete...)
-	}
+	/*
+		prefixesForTimeSlotsToKeepOne := createPrefixesForTimeSlotsToKeepOne(now)
+		for _, prefix := range prefixesForTimeSlotsToKeepOne {
+			add_to_delete := getAllButFirstMatchingPrefix(dirs, prefix)
+			to_delete = append(to_delete, add_to_delete...)
+		}
 
-	prefixesForTimeSlotsToKeepNone := createPrefixesForTimeSlotsToKeepNone(now)
-	for _, prefix := range prefixesForTimeSlotsToKeepNone {
-		add_to_delete := getAllMatchingPrefix(dirs, prefix)
+		prefixesForTimeSlotsToKeepNone := createPrefixesForTimeSlotsToKeepNone(now)
+		for _, prefix := range prefixesForTimeSlotsToKeepNone {
+			add_to_delete := getAllMatchingPrefix(dirs, prefix)
+			to_delete = append(to_delete, add_to_delete...)
+		}
+	*/
+
+	filters := getAllFilters(now, dirs)
+	for _, filter := range filters {
+		add_to_delete := getAllButFirstMatchingPrefix(dirs, filter)
 		to_delete = append(to_delete, add_to_delete...)
 	}
 
@@ -141,11 +149,9 @@ func createPrefixesForTimeSlotsToKeepOne(current time.Time) []string {
 
 	// don't use AddDate(0, -1, 0) as this function does not work as expected when we're on a March, 29th in a non-leap-year, e.g.
 	// use simpler and more robust approach, as from now on we don't need (leap-) days arithmetics anyhow
-
 	var year int = current.Year()
 	var month int = (int)(current.Month())
 
-	// we already keep the days of the 30 days leaping into the current month, so we continue with the next month
 	prevMonth(&year, &month)
 
 	for i := 24 + 30; i < 24+30+119; i++ {
@@ -163,59 +169,146 @@ func createPrefixesForTimeSlotsToKeepOne(current time.Time) []string {
 	return prefixes
 }
 
-func getAllFilters(current_time time.Time, allDirs []string) []string {
-	filters_today := getFiltersForToday(current_time)
-	remaining_hourlys := 24 - len(filters_today)
-	filters_yesterday := getFiltersForYesterday(current_time, remaining_hourlys, allDirs)
-	result := append(filters_today, filters_yesterday...)
+func getAllFilters(start_time time.Time, existingDirs []string) []string {
+	var result = []string{}
 
-	/*
-		The 24h-logic affects two days - today and yesterday. The 30 daily backups affect 30 days before that. This sums up to 32 days. There are two cases:
-		a) The 32 days affect two months M0 and M1. M0 is the month that contains today. M1 is the month where the 30st daily backup lies.
-			- Assertion: M0 is completely covered by hourly and/or daily backups.
-			i) M1 is completely covered with hourly and/or daily backups.
-				- In this case we may not use an extra "(only-)keep-the-newest-of-the-month"-filter.
-				- The monthly filters start from M2
-				- This is the case if
-					* day(today) = 4 && daycount(M1) = 28, or
-					* day(today) = 3 && daycount(M1) = 29, or
-					* day(today) = 2 && daycount(M1) = 30, or
-					* day(today) = 1 && daycount(M1) = 31
-					* OR: day(today) + daycount(M1) = 32
-			ii) M1 is not completely covered with daily backups.
-				- Assertion: M1 is only affected by daily filters: Even 31-day-months would completely be covered if some hourly filters of the second day would spill into the month.
-				- In this case we need an extra "(only-)keep-the-newest-of-the-month"-filter <=> (if and only if) there are no actual matches for daily filters in M1.
-				- The monthly filters start from M2
-				- This is the case if
-					* day(today) > 4, or
-					* day(today) = 4 && daycount(M1) > 28, or
-					* day(today) = 3 && daycount(M1) > 29, or
-					* day(today) = 2 && daycount(M1) > 30, or
-					* day(today) = 1 && daycount(M1) > 31 (impossible)
-					* OR: day(today) + daycount(M1) > 32
-		b) The 32 days affect three months M0, M1, and M2. M0 is the month that contains today. M2 is the month where the 30st daily backup lies.
-			- This is the case if
-				* day(today) = 3 && daycount(M1) <= 28, or
-				* day(today) = 2 && daycount(M1) <= 29, or
-				* day(today) = 1 && daycount(M1) <= 30
-				* OR: day(today) + daycount(M1) < 32
-			- Assertion: M0 is completely covered by hourly and/or daily backups.
-			- Assertion: M1 is a month with less than 31 days.
-			- Assertion: M1 is completely covered by hourly and/or daily backups.
-			- Assertion: M2 is not completely covered with hourly and/or daily backups.
-			ii) M2 is not completely covered with daily backups.
-				- In this case we need an extra "(only-)keep-the-newest-of-the-month"-filter <=> (if and only if) there are no actual matches for daily filters in M2.
-				- The monthly filters start from M3
-	*/
-	filters_30days := getFiltersFor30Dailys(current_time)
-	result = append(result, filters_30days...)
-	need_an_extra_monthly, for_month := getMonthToLookForAnExtraMonthly(current_time)
-	if need_an_extra_monthly {
-		result = append(result, for_month.Format("2006-01"))
+	// append hourly filters
+
+	filters_today := getFiltersForToday(start_time)
+	result = append(result, filters_today...)
+	remaining_hourlys := 24 - len(filters_today)
+	filters_yesterday := getFiltersForYesterday(start_time, remaining_hourlys, existingDirs)
+	result = append(result, filters_yesterday...)
+
+	// append daily filters
+
+	first_day_of_the_dailys := start_time.AddDate(0, 0, -2)
+	M1 := get15thOfMonthBefore(first_day_of_the_dailys)
+	M2 := get15thOfMonthBefore(M1)
+	M3 := get15thOfMonthBefore(M2)
+	daysM0 := daysInMonth(first_day_of_the_dailys.Year(), first_day_of_the_dailys.Month())
+	daysM1 := daysInMonth(M1.Year(), M1.Month())
+	var first_month_for_the_monthlys time.Time
+
+	switch first_day_of_the_dailys.Day() {
+	case 1:
+		{
+			switch daysM1 {
+			case 28:
+				// The 30 days affect THREE months M0, M1, and M2 and M2 is NOT completely covered with daily backups.
+				// pin 29 normal dailys and test 1 daily in in M2. continue with M3
+				result = append(result, getFiltersForDailys(first_day_of_the_dailys, 29)...)
+				result = append(result, getFiltersForDailysOrForMonth(getUltimo(M2.Year(), M2.Month()), 1, existingDirs)...)
+				first_month_for_the_monthlys = M3
+			case 29:
+				// The 30 days affect TWO months M0 and M1 and M1 is completely covered with daily backups.
+				// pin 30 normal dailys and test nothing. continue with M2
+				result = append(result, getFiltersForDailys(first_day_of_the_dailys, 30)...)
+				first_month_for_the_monthlys = M2
+			case 30, 31:
+				// The 30 days affect TWO months M0 and M1 and M1 is NOT completely covered with daily backups.
+				// pin 1 normal daily and test 29 dailys in in M1. continue with M2
+				result = append(result, getFiltersForDailys(first_day_of_the_dailys, 1)...)
+				result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 29, existingDirs)...)
+				first_month_for_the_monthlys = M2
+			}
+		}
+	case 2:
+		{
+			switch daysM1 {
+			case 28:
+				// The 30 days affect TWO months M0 and M1 and M1 is completely covered with daily backups.
+				// pin 30 normal dailys and test nothing. continue with M2
+				result = append(result, getFiltersForDailys(first_day_of_the_dailys, 30)...)
+				first_month_for_the_monthlys = M2
+			case 29, 30, 31:
+				// The 30 days affect TWO months M0 and M1 and M1 is NOT completely covered with daily backups.
+				// pin 2 normal dailys and test 28 dailys in in M1. continue with M2
+				result = append(result, getFiltersForDailys(first_day_of_the_dailys, 2)...)
+				result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 28, existingDirs)...)
+				first_month_for_the_monthlys = M2
+			}
+		}
+	case 30:
+		{
+			switch daysM0 {
+			case 28, 29:
+				// illegal in a month with a 30st day
+			case 30:
+				// The 30 days affect ONE month M0 and M0 is completely covered with daily backups.
+				// pin 30 normal dailys and test nothing. continue with M1
+				result = append(result, getFiltersForDailys(first_day_of_the_dailys, 30)...)
+				first_month_for_the_monthlys = M1
+			case 31:
+				// The 30 days affect ONE month M0 and (the rest of) M0 is completely covered with daily backups.
+				// Please note: the 31. will already be covered by the hourly backup filter logic, so the 30 daily filters will indeed cover the rest of the month
+				// pin 30 normal dailys and test nothing. continue with M1
+				result = append(result, getFiltersForDailys(first_day_of_the_dailys, 30)...)
+				first_month_for_the_monthlys = M1
+			}
+		}
+	case 31:
+		{
+			switch daysM0 {
+			case 28, 29, 30:
+				// illegal in a month with a 31st day
+			case 31:
+				// The 30 days affect ONE month M0 and M0 is NOT completely covered with daily backups.
+				// pin 0 normal dailys and test 30 dailys in in M0. continue with M1
+				result = append(result, getFiltersForDailysOrForMonth(first_day_of_the_dailys, 30, existingDirs)...)
+				first_month_for_the_monthlys = M1
+			}
+		}
+	default:
+		// The 30 days affect TWO months M0 and M1 and M1 is NOT completely covered with daily backups.
+		// pin daysM0 normal dailys and test 30-daysM0 dailys in in M1. continue with M2
+		result = append(result, getFiltersForDailys(first_day_of_the_dailys, daysM0)...)
+		result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 30-daysM0, existingDirs)...)
+		first_month_for_the_monthlys = M2
 	}
-	month_before := get15thOfMonthBefore(for_month)
-	filters_monthly := getMonthlyFilters(month_before)
-	result = append(result, filters_monthly...)
+
+	// append monthly filters
+
+	result = append(result, getFiltersForMonthlys(first_month_for_the_monthlys, 119)...)
+	return result
+}
+
+func getFiltersForDailys(start_date time.Time, count int) []string {
+	var result = []string{}
+	for i := 0; i < count; i++ {
+		// Format the time in the format YYYY-MM-DD
+		prefix := start_date.Format("2006-01-02")
+		result = append(result, prefix)
+		start_date = start_date.AddDate(0, 0, -1)
+	}
+	return result
+}
+
+func getFiltersForDailysOrForMonth(start_date time.Time, remaining int, existingDirs []string) []string {
+	filters_for_dailys := getFiltersForDailys(start_date, remaining)
+	any_matches := getAnyMatchingAnyPrefixes(existingDirs, filters_for_dailys) // check what is actually there
+	if any_matches {
+		// we found some daily backup folders, so return the filter for the daily backups, i.e. some YYYY-MM-DD filters
+		return filters_for_dailys
+	} else {
+		// we found no daily backup folders within the specified range, so return a filter for month, i.e. one YYYY-MM filter
+		filter := toDateStr(start_date.Year(), int(start_date.Month()))
+		return []string{filter}
+	}
+}
+
+func getFiltersForMonthlys(current time.Time, count int) []string {
+	var result = []string{}
+	// don't use AddDate(0, -1, 0) as this function does not work as expected when we're on a March, 29th in a non-leap-year, e.g.
+	// use simpler and more robust approach, as from now on we don't need (leap-) days arithmetics anyhow
+	var year int = current.Year()
+	var month int = (int)(current.Month())
+
+	for i := 0; i < count; i++ {
+		// Format the time in the format YYYY-MM
+		result = append(result, toDateStr(year, month))
+		prevMonth(&year, &month)
+	}
 	return result
 }
 
@@ -250,9 +343,9 @@ func getFiltersForYesterday(current_time time.Time, remaining_hourly_backups int
 		hourlyFilters = append(hourlyFilters, prefix)
 	}
 
-	yesterday_hourly := getAllMatchingAllPrefixes(allDirs, hourlyFilters) // check what is actually there - the filter for yesterday will depend on it
+	any_matches := getAnyMatchingAnyPrefixes(allDirs, hourlyFilters) // check what is actually there - the filter for yesterday will depend on it
 
-	if len(yesterday_hourly) > 0 {
+	if any_matches {
 		// we found some hourly backup folders for yesterday, so return the filter for the hourly backups for yesterday, i.e. some YYYY-MM-DD_HH filters
 		return hourlyFilters
 	} else {
