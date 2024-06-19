@@ -5,7 +5,6 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 )
 
@@ -82,6 +81,17 @@ func getAllMatchingAllPrefixes(from []string, prefixes []string) []string {
 	return result
 }
 
+func getAnyMatchingAnyPrefixes(search_in []string, prefixes []string) bool {
+	for _, s := range search_in {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(s, prefix) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func prevMonth(year *int, month *int) {
 	*month--
 	if *month <= 0 {
@@ -118,56 +128,19 @@ func twoDigit(i int) string {
 }
 
 func daysInMonth(year int, month time.Month) int {
+	return getUltimo(year, month).Day()
+}
+
+func getUltimo(year int, month time.Month) time.Time {
 	// Start with the first day of the next month
 	t := time.Date(year, month+1, 1, 0, 0, 0, 0, time.UTC)
 	// Subtract a day to get the last day of the original month
 	t = t.AddDate(0, 0, -1)
-	return t.Day()
+	return t
 }
 
 func get15thOfMonthBefore(current_time time.Time) time.Time {
 	t := time.Date(current_time.Year(), current_time.Month(), 15, 0, 0, 0, 0, time.UTC)
 	t = t.AddDate(0, -1, 0)
 	return t
-}
-
-func Test_toDateStr3(t *testing.T) {
-	type args struct {
-		year  int
-		month int
-		day   int
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "Test Case 1",
-			args: args{year: 2024, month: 6, day: 16},
-			want: "2024-06-16",
-		},
-		{
-			name: "Test Case 2",
-			args: args{year: 2024, month: 11, day: 5},
-			want: "2024-11-05",
-		},
-		{
-			name: "Test Case 3",
-			args: args{year: 2024, month: 10, day: 15},
-			want: "2024-10-15",
-		},
-		{
-			name: "Test Case 4",
-			args: args{year: 2024, month: 3, day: 5},
-			want: "2024-03-05",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := toDateStr3(tt.args.year, tt.args.month, tt.args.day); got != tt.want {
-				t.Errorf("toDateStr3() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }

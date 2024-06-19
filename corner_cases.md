@@ -76,22 +76,22 @@ There are five cases:
 1) The 30 days **affect one month M0** and **M0 is not completely covered with daily backups**.
     - M0 is the month that contains the first and the last day of the 30 daily backups.
     - This is the case iff
-        - day(firstday) = 31 (&& daycount(M0) = 31)
+        - day(firstday) = 31 && daycount(M0) = 31
     - In this case we **need** an extra "(only-)keep-the-newest-of-the-month"-filter for M0 <=> (if and only if) there are no actual matches for daily filters in M0.
     - The monthly filters start from M1.
 2) The 30 days **affect one month M0** and **M0 is completely covered with daily backups**.
     - M0 is the month that contains the first and the last day of the 30 daily backups.
     - This is the case iff
-        - day(tofirstdayday) = 30 && daycount(M0) = 30
+        - day(firstday) = 30 && daycount(M0) = 30
     - In this case we **may not use** an extra "(only-)keep-the-newest-of-the-month"-filter.
     - The monthly filters start from M1.
 3) The 30 days **affect two months M0 and M1** and **M1 is not completely covered with daily backups**.
     - M0 is the month that contains the first day of the 30 daily backups.
     - M1 is the month that contains the last day of the 30 daily backups.
     - This is the case iff
-        - day(firstday) > 2, or
+        - day(firstday) > 2 && day(firstday) < 30, or
         - day(firstday) = 2 && daycount(M1) > 28, or
-        - day(tofirstdayday) = 1 && daycount(M1) > 29
+        - day(firstday) = 1 && daycount(M1) > 29
     - In this case we **need** an extra "(only-)keep-the-newest-of-the-month"-filter for M1 <=> (if and only if) there are no actual matches for daily filters in M1.
     - The monthly filters start from M2.
 4) The 30 days **affect two months M0 and M1** and **M1 is completely covered with daily backups**.
