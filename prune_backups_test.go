@@ -213,11 +213,11 @@ func compareArrays(result []string, want []string, t *testing.T) {
 	}
 	for i := 0; i < max; i++ {
 		if i < len(want) && i < len(result) {
-			t.Errorf("   wanted: " + want[i] + ", got: " + result[i])
+			t.Logf("   wanted: " + want[i] + ", got: " + result[i])
 		} else if i < len(want) {
-			t.Errorf("   wanted: " + want[i] + ", got: <no more values>")
+			t.Logf("   wanted: " + want[i] + ", got: <no more values>")
 		} else {
-			t.Errorf("   wanted: <no more values>, got: " + result[i])
+			t.Logf("   wanted: <no more values>, got: " + result[i])
 		}
 	}
 }
@@ -380,4 +380,394 @@ func generateTestDirectories(t *testing.T, directories []string) string {
 	}
 
 	return dir
+}
+
+func Test_toDateStr3(t *testing.T) {
+	type args struct {
+		year  int
+		month int
+		day   int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "Test Case 1",
+			args: args{year: 2024, month: 6, day: 16},
+			want: "2024-06-16",
+		},
+		{
+			name: "Test Case 2",
+			args: args{year: 2024, month: 11, day: 5},
+			want: "2024-11-05",
+		},
+		{
+			name: "Test Case 3",
+			args: args{year: 2024, month: 10, day: 15},
+			want: "2024-10-15",
+		},
+		{
+			name: "Test Case 4",
+			args: args{year: 2024, month: 3, day: 5},
+			want: "2024-03-05",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := toDateStr3(tt.args.year, tt.args.month, tt.args.day); got != tt.want {
+				t.Errorf("toDateStr3() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getFiltersFor30Dailys(t *testing.T) {
+	for _, tt := range testsFor30Dailys {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getFiltersFor30Dailys(tt.test_time); !reflect.DeepEqual(got, tt.filter_dates) {
+				compareArrays(got, tt.filter_dates, t)
+				t.Errorf("getFiltersFor30Dailys() result not as expected!")
+			}
+		})
+	}
+}
+
+var testsFor30Dailys = []struct {
+	name                 string
+	test_time            time.Time
+	extra_monthly_needed bool
+	extra_monthly_date   time.Time
+	filter_dates         []string
+}{
+	{
+		name:                 "Test Case 1 - middle of the month",
+		test_time:            time.Date(2014, 7, 17, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: true,
+		extra_monthly_date:   time.Date(2014, 6, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			// today and yesterday and 15 days in a month
+			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/
+			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ "2014-07-15", "2014-07-14", "2014-07-13", "2014-07-12", "2014-07-11",
+			"2014-07-10", "2014-07-09", "2014-07-08", "2014-07-07", "2014-07-06", "2014-07-05", "2014-07-04", "2014-07-03", "2014-07-02", "2014-07-01",
+			// ... and 15 days in the other month
+			"2014-06-30", "2014-06-29", "2014-06-28", "2014-06-27", "2014-06-26", "2014-06-25", "2014-06-24", "2014-06-23", "2014-06-22", "2014-06-21",
+			"2014-06-20", "2014-06-19", "2014-06-18", "2014-06-17", "2014-06-16", /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/
+			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/
+		},
+	},
+	{
+		name:                 "Test Case 2 - today and yesterday in one month, the other 30 days in the month before",
+		test_time:            time.Date(2014, 7, 2, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: false,
+		extra_monthly_date:   time.Date(2014, 6, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			"2014-06-30", "2014-06-29", "2014-06-28", "2014-06-27", "2014-06-26", "2014-06-25", "2014-06-24", "2014-06-23", "2014-06-22", "2014-06-21",
+			"2014-06-20", "2014-06-19", "2014-06-18", "2014-06-17", "2014-06-16", "2014-06-15", "2014-06-14", "2014-06-13", "2014-06-12", "2014-06-11",
+			"2014-06-10", "2014-06-09", "2014-06-08", "2014-06-07", "2014-06-06", "2014-06-05", "2014-06-04", "2014-06-03", "2014-06-02", "2014-06-01",
+		},
+	},
+	{
+		name:                 "Test Case 3 - today in one month, yesterday and the other 30 days in a 31-day month before",
+		test_time:            time.Date(2014, 6, 1, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: false,
+		extra_monthly_date:   time.Date(2014, 5, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			"2014-05-30", "2014-05-29", "2014-05-28", "2014-05-27", "2014-05-26", "2014-05-25", "2014-05-24", "2014-05-23", "2014-05-22", "2014-05-21",
+			"2014-05-20", "2014-05-19", "2014-05-18", "2014-05-17", "2014-05-16", "2014-05-15", "2014-05-14", "2014-05-13", "2014-05-12", "2014-05-11",
+			"2014-05-10", "2014-05-09", "2014-05-08", "2014-05-07", "2014-05-06", "2014-05-05", "2014-05-04", "2014-05-03", "2014-05-02", "2014-05-01",
+		},
+	},
+	{
+		name:                 "Test Case 4 - today in one month, yesterday and 29 days in a 30-day month before, and 1 day in the month before that",
+		test_time:            time.Date(2014, 7, 1, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: true,
+		extra_monthly_date:   time.Date(2014, 5, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			/*XXXXXXXXX*/ "2014-06-29", "2014-06-28", "2014-06-27", "2014-06-26", "2014-06-25", "2014-06-24", "2014-06-23", "2014-06-22", "2014-06-21",
+			"2014-06-20", "2014-06-19", "2014-06-18", "2014-06-17", "2014-06-16", "2014-06-15", "2014-06-14", "2014-06-13", "2014-06-12", "2014-06-11",
+			"2014-06-10", "2014-06-09", "2014-06-08", "2014-06-07", "2014-06-06", "2014-06-05", "2014-06-04", "2014-06-03", "2014-06-02", "2014-06-01",
+			// one day in May
+			"2014-05-31",
+		},
+	},
+	{
+		name:                 "Test Case 5 - today and yesterday in a 30-day month, 28 days in the rest of the month, and 2 day in the month before that",
+		test_time:            time.Date(2014, 6, 30, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: true,
+		extra_monthly_date:   time.Date(2014, 5, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			/*XXXXXXXXX*/ /*XXXXXXXXX*/ "2014-06-28", "2014-06-27", "2014-06-26", "2014-06-25", "2014-06-24", "2014-06-23", "2014-06-22", "2014-06-21",
+			"2014-06-20", "2014-06-19", "2014-06-18", "2014-06-17", "2014-06-16", "2014-06-15", "2014-06-14", "2014-06-13", "2014-06-12", "2014-06-11",
+			"2014-06-10", "2014-06-09", "2014-06-08", "2014-06-07", "2014-06-06", "2014-06-05", "2014-06-04", "2014-06-03", "2014-06-02", "2014-06-01",
+			// two days in May
+			"2014-05-31", "2014-05-30",
+		},
+	},
+	{
+		name:                 "Test Case 6 - today and yesterday in a 29-day month, 27 days in the rest of the month, and 3 day in the month before that",
+		test_time:            time.Date(2024, 2, 29, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: true,
+		extra_monthly_date:   time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ "2024-02-27", "2024-02-26", "2024-02-25", "2024-02-24", "2024-02-23", "2024-02-22", "2024-02-21",
+			"2024-02-20", "2024-02-19", "2024-02-18", "2024-02-17", "2024-02-16", "2024-02-15", "2024-02-14", "2024-02-13", "2024-02-12", "2024-02-11",
+			"2024-02-10", "2024-02-09", "2024-02-08", "2024-02-07", "2024-02-06", "2024-02-05", "2024-02-04", "2024-02-03", "2024-02-02", "2024-02-01",
+			// three days in January
+			"2024-01-31", "2024-01-30", "2024-01-29",
+		},
+	},
+	{
+		name:                 "Test Case 7 - today and yesterday in a 28-day month, 26 days in the rest of the month, and 4 day in the month before that",
+		test_time:            time.Date(2023, 2, 28, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: true,
+		extra_monthly_date:   time.Date(2023, 1, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ "2023-02-26", "2023-02-25", "2023-02-24", "2023-02-23", "2023-02-22", "2023-02-21",
+			"2023-02-20", "2023-02-19", "2023-02-18", "2023-02-17", "2023-02-16", "2023-02-15", "2023-02-14", "2023-02-13", "2023-02-12", "2023-02-11",
+			"2023-02-10", "2023-02-09", "2023-02-08", "2023-02-07", "2023-02-06", "2023-02-05", "2023-02-04", "2023-02-03", "2023-02-02", "2023-02-01",
+			// three days in January
+			"2023-01-31", "2023-01-30", "2023-01-29", "2023-01-28",
+		},
+	},
+	{
+		name:                 "Test Case 8 - today in a month before a 29-day month, yesterday and 28 days in the rest of the month, and 2 days in the month before that",
+		test_time:            time.Date(2024, 3, 1, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: true,
+		extra_monthly_date:   time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			/*XXXXXXXXX*/ /*XXXXXXXXX*/ "2024-02-28", "2024-02-27", "2024-02-26", "2024-02-25", "2024-02-24", "2024-02-23", "2024-02-22", "2024-02-21",
+			"2024-02-20", "2024-02-19", "2024-02-18", "2024-02-17", "2024-02-16", "2024-02-15", "2024-02-14", "2024-02-13", "2024-02-12", "2024-02-11",
+			"2024-02-10", "2024-02-09", "2024-02-08", "2024-02-07", "2024-02-06", "2024-02-05", "2024-02-04", "2024-02-03", "2024-02-02", "2024-02-01",
+			// three days in January
+			"2024-01-31", "2024-01-30",
+		},
+	},
+	{
+		name:                 "Test Case 9 - today in a month before a 28-day month, yesterday and 27 days in the rest of the month, and 3 days in the month before that",
+		test_time:            time.Date(2023, 3, 1, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: true,
+		extra_monthly_date:   time.Date(2023, 1, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ "2023-02-27", "2023-02-26", "2023-02-25", "2023-02-24", "2023-02-23", "2023-02-22", "2023-02-21",
+			"2023-02-20", "2023-02-19", "2023-02-18", "2023-02-17", "2023-02-16", "2023-02-15", "2023-02-14", "2023-02-13", "2023-02-12", "2023-02-11",
+			"2023-02-10", "2023-02-09", "2023-02-08", "2023-02-07", "2023-02-06", "2023-02-05", "2023-02-04", "2023-02-03", "2023-02-02", "2023-02-01",
+			// three days in January
+			"2023-01-31", "2023-01-30", "2023-01-29",
+		},
+	},
+
+	{
+		name:                 "Test Case 10 - today and yesterday in a month before a 29-day month, 29 days in the rest of the month, and 1 days in the month before that",
+		test_time:            time.Date(2024, 3, 2, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: true,
+		extra_monthly_date:   time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			/*XXXXXXXXX*/ "2024-02-29", "2024-02-28", "2024-02-27", "2024-02-26", "2024-02-25", "2024-02-24", "2024-02-23", "2024-02-22", "2024-02-21",
+			"2024-02-20", "2024-02-19", "2024-02-18", "2024-02-17", "2024-02-16", "2024-02-15", "2024-02-14", "2024-02-13", "2024-02-12", "2024-02-11",
+			"2024-02-10", "2024-02-09", "2024-02-08", "2024-02-07", "2024-02-06", "2024-02-05", "2024-02-04", "2024-02-03", "2024-02-02", "2024-02-01",
+			// three days in January
+			"2024-01-31",
+		},
+	},
+	{
+		name:                 "Test Case 11 - today and yesterday in a month before a 28-day month, 28 days in the rest of the month, and 2 days in the month before that",
+		test_time:            time.Date(2023, 3, 2, 9, 54, 21, 0, time.UTC),
+		extra_monthly_needed: true,
+		extra_monthly_date:   time.Date(2023, 1, 15, 0, 0, 0, 0, time.UTC),
+		filter_dates: []string{
+			/*XXXXXXXXX*/ /*XXXXXXXXX*/ "2023-02-28", "2023-02-27", "2023-02-26", "2023-02-25", "2023-02-24", "2023-02-23", "2023-02-22", "2023-02-21",
+			"2023-02-20", "2023-02-19", "2023-02-18", "2023-02-17", "2023-02-16", "2023-02-15", "2023-02-14", "2023-02-13", "2023-02-12", "2023-02-11",
+			"2023-02-10", "2023-02-09", "2023-02-08", "2023-02-07", "2023-02-06", "2023-02-05", "2023-02-04", "2023-02-03", "2023-02-02", "2023-02-01",
+			// three days in January
+			"2023-01-31", "2023-01-30",
+		},
+	},
+}
+
+var testsForHourlys = []struct {
+	name                   string
+	test_time              time.Time
+	existing_dirs          []string
+	extra_daily_needed     bool
+	extra_daily            string
+	filter_dates_today     []string
+	filter_dates_yesterday []string
+}{
+	{
+		name:      "Test Case 1 - all and more, with Feb in leap year",
+		test_time: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existing_dirs: []string{
+			"2024-03-01_20-13", "2024-03-01_19-13", "2024-03-01_18-13", "2024-03-01_17-13", "2024-03-01_16-13", "2024-03-01_15-13" /* extra: */, "2024-03-01_15-03",
+			"2024-03-01_14-13", "2024-03-01_13-13", "2024-03-01_12-13", "2024-03-01_11-13", "2024-03-01_10-13", "2024-03-01_09-13",
+			"2024-03-01_08-13", "2024-03-01_07-13", "2024-03-01_06-13", "2024-03-01_05-13", "2024-03-01_04-13", "2024-03-01_03-13",
+			"2024-03-01_02-13", "2024-03-01_01-13", "2024-03-01_00-13", "2024-02-29_23-13", "2024-02-29_22-13", "2024-02-29_21-13",
+			// extra:
+			"2024-02-29_20-13", "2024-02-29_19-13",
+		},
+		extra_daily_needed: false,
+		extra_daily:        "2024-02-29",
+		filter_dates_today: []string{
+			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
+			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
+			"2024-03-01_08", "2024-03-01_07", "2024-03-01_06", "2024-03-01_05", "2024-03-01_04", "2024-03-01_03",
+			"2024-03-01_02", "2024-03-01_01", "2024-03-01_00", /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/
+		},
+		filter_dates_yesterday: []string{
+			/*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ "2024-02-29_23", "2024-02-29_22", "2024-02-29_21",
+		},
+	},
+	{
+		name:               "Test Case 2 - no existing dirs, with Feb in leap year",
+		test_time:          time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existing_dirs:      []string{},
+		extra_daily_needed: true,
+		extra_daily:        "2024-02-29",
+		filter_dates_today: []string{
+			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
+			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
+			"2024-03-01_08", "2024-03-01_07", "2024-03-01_06", "2024-03-01_05", "2024-03-01_04", "2024-03-01_03",
+			"2024-03-01_02", "2024-03-01_01", "2024-03-01_00", /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/
+		},
+		filter_dates_yesterday: []string{
+			"2024-02-29",
+		},
+	},
+	{
+		name:      "Test Case 3 - sparse, one hit yesterday, with Feb in leap year",
+		test_time: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existing_dirs: []string{
+			/*XXXXXXXXXXXXXXX*/ "2024-03-01_19-13", "2024-03-01_18-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_16-13", /*XXXXXXXXXXXXXXX*/
+			"2024-03-01_14-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_12-13", /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/
+			/*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ "2024-03-01_05-13", "2024-03-01_04-13", /*XXXXXXXXXXXXXXX*/
+			"2024-03-01_02-13", "2024-03-01_01-13" /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/, "2024-02-29_21-13",
+			// extra:
+			/*XXXXXXXXXXXXXXX*/ "2024-02-29_19-13",
+		},
+		extra_daily_needed: false,
+		extra_daily:        "2024-02-29",
+		filter_dates_today: []string{
+			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
+			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
+			"2024-03-01_08", "2024-03-01_07", "2024-03-01_06", "2024-03-01_05", "2024-03-01_04", "2024-03-01_03",
+			"2024-03-01_02", "2024-03-01_01", "2024-03-01_00", /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/
+		},
+		filter_dates_yesterday: []string{
+			/*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ "2024-02-29_23", "2024-02-29_22", "2024-02-29_21",
+		},
+	},
+	{
+		name:      "Test Case 4 - sparse, no hit yesterday, with Feb in leap year",
+		test_time: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existing_dirs: []string{
+			/*XXXXXXXXXXXXXXX*/ "2024-03-01_19-13", "2024-03-01_18-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_16-13", /*XXXXXXXXXXXXXXX*/
+			"2024-03-01_14-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_12-13", /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/
+			/*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ "2024-03-01_05-13", "2024-03-01_04-13", /*XXXXXXXXXXXXXXX*/
+			"2024-03-01_02-13", "2024-03-01_01-13", /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/
+			// extra:
+			/*XXXXXXXXXXXXXXX*/ "2024-02-29_19-13",
+		},
+		extra_daily_needed: true,
+		extra_daily:        "2024-02-29",
+		filter_dates_today: []string{
+			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
+			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
+			"2024-03-01_08", "2024-03-01_07", "2024-03-01_06", "2024-03-01_05", "2024-03-01_04", "2024-03-01_03",
+			"2024-03-01_02", "2024-03-01_01", "2024-03-01_00", /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/
+		},
+		filter_dates_yesterday: []string{
+			"2024-02-29",
+		},
+	},
+}
+
+func Test_getMonthToLookForAnExtraMonthly(t *testing.T) {
+
+	for _, tt := range testsFor30Dailys {
+		t.Run(tt.name, func(t *testing.T) {
+			got_needed, got_date := getMonthToLookForAnExtraMonthly(tt.test_time)
+			if (got_needed != tt.extra_monthly_needed) || (got_date != tt.extra_monthly_date) {
+				t.Errorf("Expected needed: %v, got needed: %v, expected date: %v, got date: %v", tt.extra_monthly_needed, got_needed, tt.extra_monthly_date, got_date)
+			}
+		})
+	}
+}
+
+func Test_daysInMonth(t *testing.T) {
+	tests := []struct {
+		year  int
+		month time.Month
+		days  int
+	}{
+		{2024, time.April, 30},     // April
+		{2024, time.June, 30},      // June
+		{2024, time.September, 30}, // September
+		{2024, time.November, 30},  // November
+		{2024, time.January, 31},   // January
+		{2024, time.March, 31},     // March
+		{2024, time.May, 31},       // May
+		{2024, time.July, 31},      // July
+		{2024, time.August, 31},    // August
+		{2024, time.October, 31},   // October
+		{2024, time.December, 31},  // December
+		{2024, time.February, 29},  // Leap year
+		{2023, time.February, 28},  // Non-leap year
+		{2000, time.February, 29},  // Leap year
+		{2100, time.February, 28},  // Non-leap year
+	}
+
+	for _, test := range tests {
+		if days := daysInMonth(test.year, test.month); days != test.days {
+			t.Errorf("Year: %d, Month: %s, expected %d, got %d", test.year, test.month, test.days, days)
+		}
+	}
+}
+
+func Test_get15thOfMonthBefore(t *testing.T) {
+	// Define test cases
+	testCases := []struct {
+		name     string
+		input    time.Time
+		expected time.Time
+	}{
+		{
+			name:     "Jan 16, 2024",
+			input:    time.Date(2024, 1, 16, 0, 0, 0, 0, time.UTC),
+			expected: time.Date(2023, 12, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "End of February in non-leap year",
+			input:    time.Date(2023, 2, 28, 0, 0, 0, 0, time.UTC),
+			expected: time.Date(2023, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "End of February in leap year",
+			input:    time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC),
+			expected: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "End of March in leap year",
+			input:    time.Date(2024, 3, 30, 0, 0, 0, 0, time.UTC),
+			expected: time.Date(2024, 2, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "End of March in non-leap year",
+			input:    time.Date(2023, 3, 30, 0, 0, 0, 0, time.UTC),
+			expected: time.Date(2023, 2, 15, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	// Run each test case
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Call the function with the test case
+			result := get15thOfMonthBefore(tc.input)
+
+			// Check if the result is as expected
+			if !result.Equal(tc.expected) {
+				t.Errorf("Expected %v, but got %v", tc.expected, result)
+			}
+		})
+	}
 }
