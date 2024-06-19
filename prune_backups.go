@@ -163,6 +163,23 @@ func createPrefixesForTimeSlotsToKeepOne(current time.Time) []string {
 	return prefixes
 }
 
+func getAllFilters(current_time time.Time, allDirs []string) []string {
+	filters_today := getFiltersForToday(current_time)
+	remaining_hourlys := 24 - len(filters_today)
+	filters_yesterday := getFiltersForYesterday(current_time, remaining_hourlys, allDirs)
+	result := append(filters_today, filters_yesterday...)
+	filters_30days := getFiltersFor30Dailys(current_time)
+	result = append(result, filters_30days...)
+	need_an_extra_monthly, for_month := getMonthToLookForAnExtraMonthly(current_time)
+	if need_an_extra_monthly {
+		result = append(result, for_month.Format("2006-01"))
+	}
+	month_before := get15thOfMonthBefore(for_month)
+	filters_monthly := getMonthlyFilters(month_before)
+	result = append(result, filters_monthly...)
+	return result
+}
+
 func getFiltersForToday(current_time time.Time) []string {
 	var result = []string{}
 
@@ -279,6 +296,22 @@ func getMonthToLookForAnExtraMonthly(current_time time.Time) (bool, time.Time) {
 	// the 30 Dailys cover every day of the month before
 	is_needed := false
 	return is_needed, month_before
+}
+
+func getMonthlyFilters(start_with time.Time) []string {
+	// don't use AddDate(0, -1, 0) as this function does not work as expected when we're on a March, 29th in a non-leap-year, e.g.
+	// use simpler and more robust approach, as from now on we don't need (leap-) days arithmetics anyhow
+
+	var year int = start_with.Year()
+	var month int = (int)(start_with.Month())
+
+	var result = []string{}
+	for i := 0; i < 119; i++ {
+		// Format the time in the format YYYY-MM
+		result = append(result, toDateStr(year, month))
+		prevMonth(&year, &month)
+	}
+	return result
 }
 
 func createPrefixesForTimeSlotsToKeepNone(current time.Time) []string {
