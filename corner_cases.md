@@ -18,7 +18,7 @@ This scenario can happen if there are only backups yesterday's folder that are o
 
 Let's assume the actual directory to be pruned contains fully valid backups directories for the past month in the format `YYYY-MM-DD`. It is possible that none of those directories matches any of the filters for rule 2) from above. **All** backup directories for the past month would be pruned. Even though this is conforming with the above rules, it is counter-intuitive and would punch a whole into the sequence of monthly backups.
 
-The 24h-logic affects two days (today and yesterday). The 30 daily backups affect 30 days before that. This sums up to 32 days. There are two cases:
+The 24h-logic affects two days (today and yesterday). The 30 daily backups affect 30 days before that. This sums up to 32 days. There are three cases:
 
 1) The 32 days **affect two months M0 and M1** and **M1 is not completely covered with daily backups**.
     - M0 is the month that contains today.
@@ -58,7 +58,7 @@ The 24h-logic affects two days (today and yesterday). The 30 daily backups affec
         - day(today) = 3 && daycount(M1) <= 28, or
         - day(today) = 2 && daycount(M1) <= 29, or
         - day(today) = 1 && daycount(M1) <= 30
-        - Alternative representation: day(today) + daycount(M1) < 32; in other words distance_to_monthly_boundary_of_the_previous_month <> 32
+        - Alternative representation: day(today) + daycount(M1) < 32; in other words distance_to_monthly_boundary_of_the_previous_month < 32
     - Assertion: The necessary part of M0 is completely covered by hourly and/or daily backups.
     - Assertion: M1 is a month with less than 31 days.
     - Assertion: M1 is completely covered by hourly and/or daily backups.
@@ -66,3 +66,47 @@ The 24h-logic affects two days (today and yesterday). The 30 daily backups affec
     - Only one case: **M2 is not completely covered with daily backups.**
         - In this case we **need** an extra "(only-)keep-the-newest-of-the-month"-filter <=> (if and only if) there are no actual matches for daily filters in M2.
         - The monthly filters start from M3
+
+## Special case of additional 'keep-the-newest-of-the-month' (Variant 2)
+
+Let's assume the actual directory to be pruned contains fully valid backups directories for the past month in the format `YYYY-MM-DD`. It is possible that none of those directories matches any of the filters for rule 2) from above. **All** backup directories for the past month would be pruned. Even though this is conforming with the above rules, it is counter-intuitive and would punch a whole into the sequence of monthly backups.
+
+There are five cases:
+
+1) The 30 days **affect one month M0** and **M0 is not completely covered with daily backups**.
+    - M0 is the month that contains the first and the last day of the 30 daily backups.
+    - This is the case iff
+        - day(firstday) = 31 (&& daycount(M0) = 31)
+    - In this case we **need** an extra "(only-)keep-the-newest-of-the-month"-filter for M0 <=> (if and only if) there are no actual matches for daily filters in M0.
+    - The monthly filters start from M1.
+2) The 30 days **affect one month M0** and **M0 is completely covered with daily backups**.
+    - M0 is the month that contains the first and the last day of the 30 daily backups.
+    - This is the case iff
+        - day(tofirstdayday) = 30 && daycount(M0) = 30
+    - In this case we **may not use** an extra "(only-)keep-the-newest-of-the-month"-filter.
+    - The monthly filters start from M1.
+3) The 30 days **affect two months M0 and M1** and **M1 is not completely covered with daily backups**.
+    - M0 is the month that contains the first day of the 30 daily backups.
+    - M1 is the month that contains the last day of the 30 daily backups.
+    - This is the case iff
+        - day(firstday) > 2, or
+        - day(firstday) = 2 && daycount(M1) > 28, or
+        - day(tofirstdayday) = 1 && daycount(M1) > 29
+    - In this case we **need** an extra "(only-)keep-the-newest-of-the-month"-filter for M1 <=> (if and only if) there are no actual matches for daily filters in M1.
+    - The monthly filters start from M2.
+4) The 30 days **affect two months M0 and M1** and **M1 is completely covered with daily backups**.
+    - M0 is the month that contains the first day of the 30 daily backups.
+    - M1 is the month that contains the last day of the 30 daily backups.
+    - This is the case iff
+        - day(firstday) = 2 && daycount(M1) = 28, or
+        - day(firstday) = 1 && daycount(M1) = 29
+    - In this case we **may not use** an extra "(only-)keep-the-newest-of-the-month"-filter.
+    - The monthly filters start from M2.
+5) The 30 days **affect three months M0, M1, and M2**.
+    - M0 is the month that contains the first day of the 30 daily backups.
+    - M1 must be a February of a non-leap-year.
+    - M2 is the month that contains the last day of the 30 daily backups.
+    - This is the case iff
+        - day(firstday) = 1 && daycount(M1) = 28
+    - In this case we **need** an extra "(only-)keep-the-newest-of-the-month"-filter for M2 <=> (if and only if) there are no actual matches for daily filters in M2.
+    - The monthly filters start from M3.
