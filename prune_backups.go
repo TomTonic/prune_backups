@@ -179,6 +179,18 @@ func getAllMatchingPrefix(from []string, prefix string) []string {
 	return result
 }
 
+func getAllMatchingAllPrefixes(from []string, prefixes []string) []string {
+	var result = []string{} // make sure it's not nil
+	for _, s := range from {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(s, prefix) {
+				result = append(result, s)
+			}
+		}
+	}
+	return result
+}
+
 func createPrefixesForTimeSlotsToKeepOne(current time.Time) []string {
 	// Create an array to hold the prefixes
 	prefixes := make([]string, 24+30+119)
@@ -241,6 +253,157 @@ func toDateStr(year int, month int) string {
 	} else {
 		return strconv.Itoa(year) + "-" + strconv.Itoa(month)
 	}
+}
+
+func toDateStr3(year int, month int, day int) string {
+	strSep1 := "-"
+	strSep2 := "-"
+	if month < 10 {
+		strSep1 = "-0"
+	}
+	if day < 10 {
+		strSep2 = "-0"
+	}
+	return strconv.Itoa(year) + strSep1 + strconv.Itoa(month) + strSep2 + strconv.Itoa(day)
+}
+
+func twoDigit(i int) string {
+	if i < 10 {
+		return "0" + strconv.Itoa(i)
+	}
+	return strconv.Itoa(i)
+}
+
+func getFiltersForToday(current_time time.Time) []string {
+	var result = []string{}
+
+	day := current_time.Day()
+
+	for current_time.Day() == day {
+		// Format the time in the format YYYY-MM-DD_hh
+		prefix := current_time.Format("2006-01-02_15") // caution, this is a magic number in go!
+		result = append(result, prefix)
+
+		// Subtract one hour from the current timestamp
+		current_time = current_time.Add(-1 * time.Hour)
+	}
+	return result
+}
+
+func getFiltersForYesterday(current_time time.Time, remaining_hourly_backups int, allDirs []string) []string {
+	var hourlyFilters = []string{}
+
+	yesterday := current_time.Add(-24 * time.Hour)
+
+	var year int = yesterday.Year()
+	var month int = (int)(yesterday.Month())
+	var day int = yesterday.Day()
+	yester_date_str := toDateStr3(year, month, day)
+
+	for i := 0; i < remaining_hourly_backups; i++ {
+		prefix := yester_date_str + "_" + twoDigit(23-i)
+		hourlyFilters = append(hourlyFilters, prefix)
+	}
+
+	yesterday_hourly := getAllMatchingAllPrefixes(allDirs, hourlyFilters) // check what is actually there - the filter for yesterday will depend on it
+
+	if len(yesterday_hourly) > 0 {
+		// we found some hourly backup folders for yesterday, so return the filter for the hourly backups for yesterday, i.e. some YYYY-MM-DD_HH filters
+		return hourlyFilters
+	} else {
+		// we found at least one hourly backup folders for yesterday, so return the filter for the latest backup for yesterday, i.e. one YYYY-MM-DD filter
+		return []string{yester_date_str}
+	}
+}
+
+func getFiltersFor30Dailys(current_time time.Time) []string {
+	var result = []string{}
+	current_time = current_time.Add(-48 * time.Hour)
+	// now current_time is the day before yesterday - the first day of the 30 daily backups filter
+
+	for i := 0; i < 30; i++ {
+		// Format the time in the format YYYY-MM-DD
+		prefix := current_time.Format("2006-01-02")
+		result = append(result, prefix)
+
+		// Subtract one day from the current timestamp
+		current_time = current_time.Add(-24 * time.Hour)
+	}
+	return result
+}
+
+func daysInMonth(year int, month time.Month) int {
+	// Start with the first day of the next month
+	t := time.Date(year, month+1, 1, 0, 0, 0, 0, time.UTC)
+	// Subtract a day to get the last day of the original month
+	t = t.AddDate(0, 0, -1)
+	return t.Day()
+}
+
+func getMonthToLookForAnExtraMonthly(current_time time.Time) (bool, time.Time) {
+	day_of_today := current_time.Day()
+	month_before := get15thOfMonthBefore(current_time) // we don't really care for the exact day, just make sure it's not the 29th-31st as substracting a month will mean a hastle
+
+	if day_of_today > 4 {
+		// the 30 days start on the day before yesterday (2 days). the shortest month has 28 days (2 days).
+		// if the day is >4 it is impossible that the 30 days do not end up somewhere 'in the middle' of the month before, even if it has 31 days
+		is_needed := true
+		return is_needed, month_before
+	}
+
+	if day_of_today == 3 {
+		num_days_in_month_before := daysInMonth(month_before.Year(), month_before.Month())
+		if num_days_in_month_before <= 28 {
+			// spill-over into the month even before that
+			month_before = get15thOfMonthBefore(month_before)
+			is_needed := true
+			return is_needed, month_before
+		}
+		if num_days_in_month_before == 29 {
+			// the 30 Dailys cover every day of the month before
+			is_needed := false
+			return is_needed, month_before
+		}
+		// the 30 Dailys DO NOT cover every day of the month before
+		is_needed := false
+		return is_needed, month_before
+	}
+	if day_of_today == 2 {
+		num_days_in_month_before := daysInMonth(month_before.Year(), month_before.Month())
+		if num_days_in_month_before <= 29 {
+			// spill-over into the month even before that
+			month_before = get15thOfMonthBefore(month_before)
+			is_needed := true
+			return is_needed, month_before
+		}
+		if num_days_in_month_before == 30 {
+			// the 30 Dailys cover every day of the month before
+			is_needed := false
+			return is_needed, month_before
+		}
+		// the 30 Dailys DO NOT cover every day of the month before
+		is_needed := false
+		return is_needed, month_before
+	}
+	// must be the 1st of the month
+
+	num_days_in_month_before := daysInMonth(month_before.Year(), month_before.Month())
+	if num_days_in_month_before <= 30 {
+		// spill-over into the month even before that
+		month_before = get15thOfMonthBefore(month_before)
+		is_needed := true
+		return is_needed, month_before
+	}
+
+	// the 30 Dailys cover every day of the month before
+	is_needed := false
+	return is_needed, month_before
+}
+
+func get15thOfMonthBefore(current_time time.Time) time.Time {
+	t := time.Date(current_time.Year(), current_time.Month(), 15, 0, 0, 0, 0, time.UTC)
+	t = t.AddDate(0, -1, 0)
+	return t
 }
 
 func createPrefixesForTimeSlotsToKeepNone(current time.Time) []string {
