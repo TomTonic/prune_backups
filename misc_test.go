@@ -44,7 +44,6 @@ func Test_getAllMatchingPrefix(t *testing.T) {
 			want:   []string{"dog", "deer", "duck"},
 		},
 	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := getAllMatchingPrefix(tc.from, tc.prefix)
