@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+/*
 func Test_createPrefixesForTimeSlotsToKeepOne(t *testing.T) {
 	test_time := time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC)
 	want := []string{
@@ -42,6 +43,7 @@ func Test_createPrefixesForTimeSlotsToKeepOne(t *testing.T) {
 	}
 
 }
+*/
 
 func compareArrays(result []string, want []string, t *testing.T) {
 	max := len(result)
@@ -219,6 +221,7 @@ func generateTestDirectories(t *testing.T, directories []string) string {
 	return dir
 }
 
+/*
 func Test_getFiltersFor30Dailys(t *testing.T) {
 	for _, tt := range testsFor30Dailys {
 		t.Run(tt.name, func(t *testing.T) {
@@ -229,7 +232,8 @@ func Test_getFiltersFor30Dailys(t *testing.T) {
 		})
 	}
 }
-
+*/
+/*
 func Test_getMonthToLookForAnExtraMonthly(t *testing.T) {
 	for _, tt := range testsFor30Dailys {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,6 +244,7 @@ func Test_getMonthToLookForAnExtraMonthly(t *testing.T) {
 		})
 	}
 }
+*/
 
 var testsFor30Dailys = []struct {
 	name                 string
@@ -391,6 +396,20 @@ var testsFor30Dailys = []struct {
 			"2023-01-31", "2023-01-30",
 		},
 	},
+}
+
+func Test_getFiltersForHourlys(t *testing.T) {
+	for _, tt := range testsForHourlys {
+		t.Run(tt.name, func(t *testing.T) {
+			expected := append([]string{}, tt.filter_dates_today...)
+			expected = append(expected, tt.filter_dates_yesterday...)
+			got := getFiltersForHourlys(tt.test_time, tt.existing_dirs)
+			if !reflect.DeepEqual(got, expected) {
+				compareArrays(got, expected, t)
+				t.Errorf("getFiltersForHourlys() result not as expected!")
+			}
+		})
+	}
 }
 
 func Test_getFiltersForToday(t *testing.T) {
