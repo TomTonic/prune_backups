@@ -20,39 +20,49 @@ Let's assume the actual directory to be pruned contains fully valid backups dire
 
 The 24h-logic affects two days (today and yesterday). The 30 daily backups affect 30 days before that. This sums up to 32 days. There are two cases:
 
-1) The 32 days **affect two months M0 and M1**. M0 is the month that contains today. M1 is the month where the 30st daily backup lies. Month M2 denotes the month before M1.
-    * Assertion: The necessary part of M0 is completely covered by hourly and/or daily backups.
-    * Case: **M1 is completely covered with hourly and/or daily backups.**
-        - As only two months are covered, this is equivalent to the case where the end of the 30 days exactly falls together with the 'end' (i.e., the 1st) of the month.
-        - This is the case iff
-            * day(today) = 4 && daycount(M1) = 28, or
-            * day(today) = 3 && daycount(M1) = 29, or
-            * day(today) = 2 && daycount(M1) = 30, or
-            * day(today) = 1 && daycount(M1) = 31
-            * Alternative representation: day(today) + daycount(M1) = 32
-        - In this case we **may not** use an extra "(only-)keep-the-newest-of-the-month"-filter.
-        - The monthly filters start from M2.
-    * Case: **M1 is not completely covered with daily backups.**
-        - This is the case iff
-            * day(today) > 4, or
-            * day(today) = 4 && daycount(M1) > 28, or
-            * day(today) = 3 && daycount(M1) > 29, or
-            * day(today) = 2 && daycount(M1) > 30, or
-            * day(today) = 1 && daycount(M1) > 31 (impossible)
-            * Alternative representation: day(today) + daycount(M1) > 32
-        - Assertion: M1 is only affected by daily filters: M1 is not completely covered with daily backups -> M1 has at least 1 day left uncovered -> M1 consumes at most 30 daily filters.
-        - In this case we **need** an extra "(only-)keep-the-newest-of-the-month"-filter <=> (if and only if) there are no actual matches for daily filters in M1.
-        - The monthly filters start from M2.
-2) The 32 days **affect three months M0, M1, and M2**. M0 is the month that contains today. M2 is the month where the 30st daily backup lies. Month M3 denotes the month before M1.
-    * This is the case iff
+1) The 32 days **affect two months M0 and M1** and **M1 is not completely covered with daily backups**.
+    - M0 is the month that contains today.
+    - M1 is the month where the 30st daily backup lies.
+    - M2 is the month before M1.
+    - This is the case iff
+        - day(today) > 4, or
+        - day(today) = 4 && daycount(M1) > 28, or
+        - day(today) = 3 && daycount(M1) > 29, or
+        - day(today) = 2 && daycount(M1) > 30, or
+        - day(today) = 1 && daycount(M1) > 31 (impossible)
+        - Alternative representation: day(today) + daycount(M1) > 32; in other words distance_to_monthly_boundary_of_the_previous_month > 32
+    - Assertion: The necessary part of M0 is completely covered by hourly and/or daily backups.
+    - Assertion: M1 is only affected by daily filters: M1 is not completely covered with daily backups -> M1 has at least 1 day left uncovered -> M1 consumes at most 30 daily filters.
+    - In this case we **need** an extra "(only-)keep-the-newest-of-the-month"-filter <=> (if and only if) there are no actual matches for daily filters in M1.
+    - The monthly filters start from M2.
+2) The 32 days **affect two months M0 and M1** and **M1 is completely covered with hourly and/or daily backups**.
+    - M0 is the month that contains today.
+    - M1 is the month where the 30st daily backup lies.
+    - M2 is the month before M1.
+    - As only two months are covered, this is equivalent to the case where the end of the 30 days exactly falls together with the 'end' (i.e., the 1st) of the month.
+    - This is the case iff
+        - day(today) = 4 && daycount(M1) = 28, or
+        - day(today) = 3 && daycount(M1) = 29, or
+        - day(today) = 2 && daycount(M1) = 30, or
+        - day(today) = 1 && daycount(M1) = 31
+        - Alternative representation: day(today) + daycount(M1) = 32; in other words distance_to_monthly_boundary_of_the_previous_month == 32
+    - Assertion: The necessary part of M0 is completely covered by hourly and/or daily backups.
+    - In this case we **may not** use an extra "(only-)keep-the-newest-of-the-month"-filter.
+    - The monthly filters start from M2.
+3) The 32 days **affect three months M0, M1, and M2**. M0 is the month that contains today. M2 is the month where the 30st daily backup lies. Month M3 denotes the month before M1.
+    - M0 is the month that contains today.
+    - M1 is the month in between.
+    - M2 is the month where the 30st daily backup lies.
+    - M3 is the month before M2.
+    - This is the case iff
         - day(today) = 3 && daycount(M1) <= 28, or
         - day(today) = 2 && daycount(M1) <= 29, or
         - day(today) = 1 && daycount(M1) <= 30
-        - Alternative representation: day(today) + daycount(M1) < 32
-    * Assertion: The necessary part of M0 is completely covered by hourly and/or daily backups.
-    * Assertion: M1 is a month with less than 31 days.
-    * Assertion: M1 is completely covered by hourly and/or daily backups.
-    * Assertion: M2 is not completely covered with hourly and/or daily backups.
-    * Only one case: **M2 is not completely covered with daily backups.**
-        - In this case we **nee**d an extra "(only-)keep-the-newest-of-the-month"-filter <=> (if and only if) there are no actual matches for daily filters in M2.
+        - Alternative representation: day(today) + daycount(M1) < 32; in other words distance_to_monthly_boundary_of_the_previous_month <> 32
+    - Assertion: The necessary part of M0 is completely covered by hourly and/or daily backups.
+    - Assertion: M1 is a month with less than 31 days.
+    - Assertion: M1 is completely covered by hourly and/or daily backups.
+    - Assertion: M2 is not completely covered with hourly and/or daily backups.
+    - Only one case: **M2 is not completely covered with daily backups.**
+        - In this case we **need** an extra "(only-)keep-the-newest-of-the-month"-filter <=> (if and only if) there are no actual matches for daily filters in M2.
         - The monthly filters start from M3
