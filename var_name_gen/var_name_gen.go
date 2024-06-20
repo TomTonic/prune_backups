@@ -7,11 +7,11 @@ import (
 
 func main() {
 
-	var date time.Time = time.Date(2024, 5, 31, 23, 54, 21, 0, time.UTC)
-	var count int = 30
-	var format_print int = 3 // 2=YYYY-MM, 3=YYYY-MM-DD, 4=YYYY-MM-DD_HH, 5=YYYY-MM-DD_HH-mm
-	var format_jump int = 3  // 2=month, 3=day, 4=hour
-	var per_line int = 6     // line break after ... entries
+	var date time.Time = time.Date(2023, 12, 15, 20, 34, 58, 0, time.UTC)
+	var count int = 119
+	var format_print int = 2 // 2=YYYY-MM, 3=YYYY-MM-DD, 4=YYYY-MM-DD_HH, 5=YYYY-MM-DD_HH-mm
+	var format_jump int = 2  // 2=month, 3=day, 4=hour
+	var per_line int = 12    // line break after ... entries
 
 	for i := 1; i < count+1; i++ {
 		fmt.Print("\"")
