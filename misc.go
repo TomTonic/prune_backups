@@ -59,28 +59,6 @@ func getAllButFirstMatchingPrefix(from []string, prefix string) []string {
 	return result
 }
 
-func getAllMatchingPrefix(from []string, prefix string) []string {
-	var result = []string{} // make sure it's not nil
-	for _, s := range from {
-		if strings.HasPrefix(s, prefix) {
-			result = append(result, s)
-		}
-	}
-	return result
-}
-
-func getAllMatchingAllPrefixes(from []string, prefixes []string) []string {
-	var result = []string{} // make sure it's not nil
-	for _, s := range from {
-		for _, prefix := range prefixes {
-			if strings.HasPrefix(s, prefix) {
-				result = append(result, s)
-			}
-		}
-	}
-	return result
-}
-
 func getAnyMatchingAnyPrefixes(search_in []string, prefixes []string) bool {
 	for _, s := range search_in {
 		for _, prefix := range prefixes {

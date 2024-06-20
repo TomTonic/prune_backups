@@ -70,7 +70,7 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		to_delete = append(to_delete, add_to_delete...)
 	}
 
-	cleaup_others := getDateDirectoriesNotMatchingAnyPrefix(dirs, filters)
+	cleaup_others := getDateDirectoriesNotMatchingAnyPrefix(dirs, filters, verbosity)
 	to_delete = append(to_delete, cleaup_others...)
 
 	delPath := filepath.Join(pruneDirName, toDeleteDirName)
@@ -312,7 +312,7 @@ func getFiltersForMonthlys(current time.Time, count int) []string {
 	return result
 }
 
-func getDateDirectoriesNotMatchingAnyPrefix(allDirs []string, prefixes []string) []string {
+func getDateDirectoriesNotMatchingAnyPrefix(allDirs []string, prefixes []string, verbosity int) []string {
 	var result = []string{}
 	r, _ := regexp.Compile(`^[\d]{4}\-[\d]{2}\-[\d]{2}.*`)
 	for _, dir := range allDirs {
@@ -328,7 +328,9 @@ func getDateDirectoriesNotMatchingAnyPrefix(allDirs []string, prefixes []string)
 				result = append(result, dir)
 			}
 		} else {
-			// note a date direcory
+			if verbosity > 1 {
+				fmt.Println("Skipping", dir, "as it is not in date format.")
+			}
 		}
 	}
 	return result
