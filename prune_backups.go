@@ -118,7 +118,7 @@ func getAllFilters(start_time time.Time, existingDirs []string) []string {
 
 	// append daily filters
 
-	filters_for_dailys, first_month_for_the_monthlys := getFiltersForDailys(start_time, existingDirs)
+	filters_for_dailys, first_month_for_the_monthlys := getFiltersForDailys(start_time.AddDate(0, 0, -2), existingDirs)
 	result = append(result, filters_for_dailys...)
 
 	// append monthly filters
@@ -180,35 +180,34 @@ func getFiltersForYesterday(current_time time.Time, remaining_hourly_backups int
 	}
 }
 
-func getFiltersForDailys(start_time time.Time, existingDirs []string) ([]string, time.Time) {
+func getFiltersForDailys(start_date time.Time, existingDirs []string) ([]string, time.Time) {
 	var result = []string{}
 	var first_month_for_the_monthlys time.Time
-	first_day_of_the_dailys := start_time.AddDate(0, 0, -2)
-	M1 := get15thOfMonthBefore(first_day_of_the_dailys)
+	M1 := get15thOfMonthBefore(start_date)
 	M2 := get15thOfMonthBefore(M1)
 	M3 := get15thOfMonthBefore(M2)
-	daysM0 := daysInMonth(first_day_of_the_dailys.Year(), first_day_of_the_dailys.Month())
+	daysM0 := daysInMonth(start_date.Year(), start_date.Month())
 	daysM1 := daysInMonth(M1.Year(), M1.Month())
 
-	switch first_day_of_the_dailys.Day() {
+	switch start_date.Day() {
 	case 1:
 		{
 			switch daysM1 {
 			case 28:
 				// The 30 days affect THREE months M0, M1, and M2 and M2 is NOT completely covered with daily backups.
 				// pin 29 normal dailys and test 1 daily in in M2. continue with M3
-				result = append(result, getFiltersForDailysSimple(first_day_of_the_dailys, 29)...)
+				result = append(result, getFiltersForDailysSimple(start_date, 29)...)
 				result = append(result, getFiltersForDailysOrForMonth(getUltimo(M2.Year(), M2.Month()), 1, existingDirs)...)
 				first_month_for_the_monthlys = M3
 			case 29:
 				// The 30 days affect TWO months M0 and M1 and M1 is completely covered with daily backups.
 				// pin 30 normal dailys and test nothing. continue with M2
-				result = append(result, getFiltersForDailysSimple(first_day_of_the_dailys, 30)...)
+				result = append(result, getFiltersForDailysSimple(start_date, 30)...)
 				first_month_for_the_monthlys = M2
 			case 30, 31:
 				// The 30 days affect TWO months M0 and M1 and M1 is NOT completely covered with daily backups.
 				// pin 1 normal daily and test 29 dailys in in M1. continue with M2
-				result = append(result, getFiltersForDailysSimple(first_day_of_the_dailys, 1)...)
+				result = append(result, getFiltersForDailysSimple(start_date, 1)...)
 				result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 29, existingDirs)...)
 				first_month_for_the_monthlys = M2
 			}
@@ -219,12 +218,12 @@ func getFiltersForDailys(start_time time.Time, existingDirs []string) ([]string,
 			case 28:
 				// The 30 days affect TWO months M0 and M1 and M1 is completely covered with daily backups.
 				// pin 30 normal dailys and test nothing. continue with M2
-				result = append(result, getFiltersForDailysSimple(first_day_of_the_dailys, 30)...)
+				result = append(result, getFiltersForDailysSimple(start_date, 30)...)
 				first_month_for_the_monthlys = M2
 			case 29, 30, 31:
 				// The 30 days affect TWO months M0 and M1 and M1 is NOT completely covered with daily backups.
 				// pin 2 normal dailys and test 28 dailys in in M1. continue with M2
-				result = append(result, getFiltersForDailysSimple(first_day_of_the_dailys, 2)...)
+				result = append(result, getFiltersForDailysSimple(start_date, 2)...)
 				result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 28, existingDirs)...)
 				first_month_for_the_monthlys = M2
 			}
@@ -237,13 +236,13 @@ func getFiltersForDailys(start_time time.Time, existingDirs []string) ([]string,
 			case 30:
 				// The 30 days affect ONE month M0 and M0 is completely covered with daily backups.
 				// pin 30 normal dailys and test nothing. continue with M1
-				result = append(result, getFiltersForDailysSimple(first_day_of_the_dailys, 30)...)
+				result = append(result, getFiltersForDailysSimple(start_date, 30)...)
 				first_month_for_the_monthlys = M1
 			case 31:
 				// The 30 days affect ONE month M0 and (the rest of) M0 is completely covered with daily backups.
 				// Please note: the 31. will already be covered by the hourly backup filter logic, so the 30 daily filters will indeed cover the rest of the month
 				// pin 30 normal dailys and test nothing. continue with M1
-				result = append(result, getFiltersForDailysSimple(first_day_of_the_dailys, 30)...)
+				result = append(result, getFiltersForDailysSimple(start_date, 30)...)
 				first_month_for_the_monthlys = M1
 			}
 		}
@@ -255,15 +254,15 @@ func getFiltersForDailys(start_time time.Time, existingDirs []string) ([]string,
 			case 31:
 				// The 30 days affect ONE month M0 and M0 is NOT completely covered with daily backups.
 				// pin 0 normal dailys and test 30 dailys in in M0. continue with M1
-				result = append(result, getFiltersForDailysOrForMonth(first_day_of_the_dailys, 30, existingDirs)...)
+				result = append(result, getFiltersForDailysOrForMonth(start_date, 30, existingDirs)...)
 				first_month_for_the_monthlys = M1
 			}
 		}
 	default:
 		// The 30 days affect TWO months M0 and M1 and M1 is NOT completely covered with daily backups.
 		// pin daysM0 normal dailys and test 30-daysM0 dailys in in M1. continue with M2
-		result = append(result, getFiltersForDailysSimple(first_day_of_the_dailys, daysM0)...)
-		result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 30-daysM0, existingDirs)...)
+		result = append(result, getFiltersForDailysSimple(start_date, start_date.Day())...)
+		result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 30-start_date.Day(), existingDirs)...)
 		first_month_for_the_monthlys = M2
 	}
 	return result, first_month_for_the_monthlys
