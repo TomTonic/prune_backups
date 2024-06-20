@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -67,6 +69,9 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		add_to_delete := getAllButFirstMatchingPrefix(dirs, filter)
 		to_delete = append(to_delete, add_to_delete...)
 	}
+
+	cleaup_others := getDateDirectoriesNotMatchingAnyPrefix(dirs, filters)
+	to_delete = append(to_delete, cleaup_others...)
 
 	delPath := filepath.Join(pruneDirName, toDeleteDirName)
 	err2 := os.MkdirAll(delPath, 0755)
@@ -303,6 +308,28 @@ func getFiltersForMonthlys(current time.Time, count int) []string {
 		// Format the time in the format YYYY-MM
 		result = append(result, toDateStr(year, month))
 		prevMonth(&year, &month)
+	}
+	return result
+}
+
+func getDateDirectoriesNotMatchingAnyPrefix(allDirs []string, prefixes []string) []string {
+	var result = []string{}
+	r, _ := regexp.Compile(`^[\d]{4}\-[\d]{2}\-[\d]{2}.*`)
+	for _, dir := range allDirs {
+		if r.Match([]byte(dir)) {
+			found_match := false
+			for _, prefix := range prefixes {
+				if strings.HasPrefix(dir, prefix) {
+					found_match = true
+					break
+				}
+			}
+			if !found_match {
+				result = append(result, dir)
+			}
+		} else {
+			// note a date direcory
+		}
 	}
 	return result
 }

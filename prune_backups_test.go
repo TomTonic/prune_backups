@@ -683,3 +683,57 @@ func Test_getAllFilters(t *testing.T) {
 		})
 	}
 }
+
+func Test_getDateDirectoriesNotMatchingAnyPrefix(t *testing.T) {
+	tests := []struct {
+		name     string
+		allDirs  []string
+		prefixes []string
+		want     []string
+	}{
+		{
+			name:     "Test 1: No directory matches the prefix",
+			allDirs:  []string{"2024-06-16test", "2024-06-17test", "2024-06-18test", "to_delete"},
+			prefixes: []string{"2025"},
+			want:     []string{"2024-06-16test", "2024-06-17test", "2024-06-18test"},
+		},
+		{
+			name:     "Test 2: Some directories match the prefix",
+			allDirs:  []string{"2024-06-16test", "2024-06-17test", "2024-06-18test"},
+			prefixes: []string{"2024-06-16"},
+			want:     []string{"2024-06-17test", "2024-06-18test"},
+		},
+		{
+			name:     "Test 3: All directories match the prefix",
+			allDirs:  []string{"2024-06-16test", "2024-06-17test", "2024-06-18test"},
+			prefixes: []string{"2024"},
+			want:     []string{},
+		},
+		{
+			name:     "Test 4: No directory matches any prefix",
+			allDirs:  []string{"2024-06-16test", "2024-06-17test", "2024-06-18test", "to_delete"},
+			prefixes: []string{"2025", "2027"},
+			want:     []string{"2024-06-16test", "2024-06-17test", "2024-06-18test"},
+		},
+		{
+			name:     "Test 5: Some directories match some prefixes",
+			allDirs:  []string{"2024-06-16test", "2024-06-17test", "2024-06-18test", "hello"},
+			prefixes: []string{"2027", "2024-06-16", "2024-06-18"},
+			want:     []string{"2024-06-17test"},
+		},
+		{
+			name:     "Test 6: All directories match a prefix",
+			allDirs:  []string{"2024-06-16test", "2024-06-17test", "2024-06-18test"},
+			prefixes: []string{"2024-06-18", "2027", "2024-06-16", "2024-06-17"},
+			want:     []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getDateDirectoriesNotMatchingAnyPrefix(tt.allDirs, tt.prefixes); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getDateDirectoriesNotMatchingAnyPrefix() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
