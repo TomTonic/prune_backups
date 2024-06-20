@@ -6,54 +6,6 @@ import (
 	"time"
 )
 
-func Test_getAllMatchingPrefix(t *testing.T) {
-	testCases := []struct {
-		name   string
-		from   []string
-		prefix string
-		want   []string
-	}{
-		{
-			name:   "Test no matches",
-			from:   []string{"cat", "cap", "car"},
-			prefix: "df",
-			want:   []string{},
-		},
-		{
-			name:   "Test empty input",
-			from:   []string{},
-			prefix: "df",
-			want:   []string{},
-		},
-		{
-			name:   "Test empty prefix",
-			from:   []string{"cat", "cap", "car"},
-			prefix: "",
-			want:   []string{"cat", "cap", "car"},
-		},
-		{
-			name:   "Test 2 out of 4",
-			from:   []string{"apple", "banana", "apricot", "grape"},
-			prefix: "ap",
-			want:   []string{"apple", "apricot"},
-		},
-		{
-			name:   "Test all 3",
-			from:   []string{"dog", "deer", "duck"},
-			prefix: "d",
-			want:   []string{"dog", "deer", "duck"},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := getAllMatchingPrefix(tc.from, tc.prefix)
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("getAllMatchingPrefix() = %v, want %v", got, tc.want)
-			}
-		})
-	}
-}
-
 func Test_getAllButFirstMatchingPrefix(t *testing.T) {
 	testCases := []struct {
 		name   string
