@@ -94,7 +94,7 @@ func Test_pruneDirectoryYesterdayMissing(t *testing.T) {
 }
 
 func pruneAndCheck(t *testing.T, test_dir string, test_time_pruning time.Time, expect_remaining []string, number_expect_deleted int) {
-	pruneDirectory(test_dir, test_time_pruning, "to_delete", 0)
+	pruneDirectory(test_dir, test_time_pruning, "to_delete", 0, false)
 
 	// get resulting directories and sort descending
 	result := getAllDirectories(t, test_dir)

@@ -17,7 +17,8 @@ func main() {
 
 	pruneDirName := flag.String("dir", "<none>", "REQUIRED. The name of the directory that shall be pruned.")
 	toDeleteDirName := flag.String("to_directory", "to_delete", "OPTIONAL. The name of the directory where the pruned directories shall be moved.")
-	showVersion := flag.Bool("version", false, "OPTIONAL. Show version/build information and exit if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
+	showStats := flag.Bool("stats", false, "OPTIONAL. Show total size of linked and unlinked files in the pruned directories if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
+	showVersion := flag.Bool("version", false, "OPTIONAL. Show version/build information and exit if `true`. (default false)")                            // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
 	verbosity := flag.Int("v", 1, "OPTIONAL. Set verbosity. O - mute, 1 - some, 2 - a lot.")
 
 	flag.CommandLine.SetOutput(os.Stdout)
@@ -37,10 +38,10 @@ func main() {
 
 	now := time.Now()
 
-	pruneDirectory(*pruneDirName, now, *toDeleteDirName, *verbosity)
+	pruneDirectory(*pruneDirName, now, *toDeleteDirName, *verbosity, *showStats)
 }
 
-func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, verbosity int) {
+func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, verbosity int, showStats bool) {
 	files, err := os.ReadDir(pruneDirName)
 	if err != nil {
 		fmt.Print("Could not read pruning directory (-dir): ")
@@ -111,6 +112,10 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 	}
 	if verbosity > 0 {
 		fmt.Println("I moved", successful_move_counter, "directories to", delPath)
+	}
+	if showStats {
+		size_of_unlinked_files, size_of_linked_files := du(delPath)
+		fmt.Printf("The directory %v now contains %v bytes in unlinked files, %v bytes in linked files\n", delPath, size_of_unlinked_files, size_of_linked_files)
 	}
 }
 
