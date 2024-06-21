@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -121,4 +122,22 @@ func get15thOfMonthBefore(current_time time.Time) time.Time {
 	t := time.Date(current_time.Year(), current_time.Month(), 15, 0, 0, 0, 0, time.UTC)
 	t = t.AddDate(0, -1, 0)
 	return t
+}
+
+func formatSI(b uint64) string {
+	const basis = 1000
+	if b < basis {
+		return fmt.Sprintf("%d ", b)
+	}
+	div := int64(basis)
+	exp := 0
+	for n := b / basis; n >= basis; n /= basis {
+		div *= basis
+		exp++
+	}
+	return fmt.Sprintf(
+		"%.1f %c",
+		float64(b)/float64(div),
+		"kMGTPE"[exp],
+	)
 }
