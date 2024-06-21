@@ -9,22 +9,22 @@ import (
 func du(dirNameOrFileName string) (size_of_unlinked_files, size_of_linked_files uint64) {
 	if ok, err := isDirectory(dirNameOrFileName); ok {
 		if err != nil {
-			fmt.Printf("Error identifying %v: %v", dirNameOrFileName, err)
+			fmt.Printf("Error identifying %v: %v\\n", dirNameOrFileName, err)
 			return
 		}
 		size_of_unlinked_files, size_of_linked_files, err = duInternalDirectory(dirNameOrFileName)
 		if err != nil {
-			fmt.Printf("Error reading directory %v: %v", dirNameOrFileName, err)
+			fmt.Printf("Error reading directory %v: %v\\n", dirNameOrFileName, err)
 			return
 		}
 	} else {
 		size_of_unlinked_files, size_of_linked_files, err = duInternalFile(dirNameOrFileName)
 		if err != nil {
-			fmt.Printf("Error reading file %v: %v", dirNameOrFileName, err)
+			fmt.Printf("Error reading file %v: %v\\n", dirNameOrFileName, err)
 			return
 		}
 	}
-	fmt.Printf("total size of unlinked files: %v bytes; total size of linked files: %v bytes", size_of_unlinked_files, size_of_linked_files)
+	//fmt.Printf("total size of unlinked files: %v bytes; total size of linked files: %v bytes", size_of_unlinked_files, size_of_linked_files)
 	return size_of_unlinked_files, size_of_linked_files
 }
 
@@ -64,7 +64,7 @@ func duInternalDirectory(directoryName string) (size_of_unlinked_files, size_of_
 		if file.Type().IsRegular() {
 			f_size_of_unlinked_files, f_size_of_linked_files, err := duInternalFile(fullPath)
 			if err != nil {
-				fmt.Printf("Error getting info for regular file %v: %v", fullPath, err)
+				fmt.Printf("Error getting info for regular file %v: %v\\n", fullPath, err)
 			}
 			size_of_unlinked_files += f_size_of_unlinked_files
 			size_of_linked_files += f_size_of_linked_files
@@ -79,7 +79,7 @@ func duInternalDirectory(directoryName string) (size_of_unlinked_files, size_of_
 	for _, subdir := range subdirs {
 		sd_size_of_unlinked_files, sd_size_of_linked_files, err := duInternalDirectory(subdir)
 		if err != nil {
-			fmt.Printf("Error getting info for directory %v: %v", subdir, err)
+			fmt.Printf("Error getting info for directory %v: %v\\n", subdir, err)
 		} else {
 			size_of_unlinked_files += sd_size_of_unlinked_files
 			size_of_linked_files += sd_size_of_linked_files
