@@ -1,4 +1,4 @@
-//go:build linux || darwin
+//go:build linux
 
 package main
 
@@ -29,7 +29,7 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 	}
 
 	size = uint64(stat.Size)
-	link_count = stat.Nlink
+	link_count = uint64(stat.Nlink)
 
 	return size, link_count, err
 }
