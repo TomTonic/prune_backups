@@ -114,8 +114,14 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		fmt.Println("I moved", successful_move_counter, "directories to", delPath)
 	}
 	if showStats {
-		number_of_unlinked_files, size_of_unlinked_files, number_of_linked_files, size_of_linked_files, number_of_subdirs := du(delPath)
-		fmt.Printf("The directory %v now contains %v bytes in %v unlinked files and %v bytes in %v hard-linked files in a total of %v directories.\n", delPath, size_of_unlinked_files, number_of_unlinked_files, size_of_linked_files, number_of_linked_files, number_of_subdirs)
+		//number_of_unlinked_files, size_of_unlinked_files, number_of_linked_files, size_of_linked_files, number_of_subdirs := du(delPath)
+		info := du(delPath)
+		fmt.Printf("The directory %v now contains %v bytes in %v unlinked files and %v bytes in %v hard-linked files in a total of %v directories.\n", delPath,
+			info.size_of_unlinked_files,
+			info.number_of_unlinked_files,
+			info.size_of_linked_files,
+			info.number_of_linked_files,
+			info.number_of_subdirs)
 	}
 }
 
