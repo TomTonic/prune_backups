@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"golang.org/x/sys/windows"
@@ -15,7 +16,7 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 
 	file, err := os.Open(filename)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("Error calling os.Open (%s).", err)
 	}
 	defer file.Close()
 
@@ -24,7 +25,7 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 	var fileInfo windows.ByHandleFileInformation
 	err = windows.GetFileInformationByHandle(handle, &fileInfo)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("Error calling windows.GetFileInformationByHandle (%s).", err)
 	}
 
 	size = uint64(fileInfo.FileSizeHigh)<<32 | uint64(fileInfo.FileSizeLow)
