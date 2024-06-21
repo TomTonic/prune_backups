@@ -27,22 +27,22 @@ type Infoblock struct {
 	mutex                    sync.Mutex
 }
 
-func du(dirNameOrFileName string) Infoblock {
+func du(dir_name_or_file_name string) Infoblock {
 	result := Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, sync.Mutex{}}
-	if ok, err := isDirectory(dirNameOrFileName); ok {
+	if ok, err := isDirectory(dir_name_or_file_name); ok {
 		if err != nil {
-			fmt.Printf("Error identifying %v: %v\n", dirNameOrFileName, err)
+			fmt.Printf("Error identifying %v: %v\n", dir_name_or_file_name, err)
 			return result
 		}
-		err = duInternalDirectory(dirNameOrFileName, &result)
+		err = duInternalDirectory(dir_name_or_file_name, &result)
 		if err != nil {
-			fmt.Printf("Error reading directory %v: %v\n", dirNameOrFileName, err)
+			fmt.Printf("Error reading directory %v: %v\n", dir_name_or_file_name, err)
 			return result
 		}
 	} else {
-		err = duInternalFile(dirNameOrFileName, &result)
+		err = duInternalFile(dir_name_or_file_name, &result)
 		if err != nil {
-			fmt.Printf("Error reading file %v: %v\n", dirNameOrFileName, err)
+			fmt.Printf("Error reading file %v: %v\n", dir_name_or_file_name, err)
 			return result
 		}
 	}
@@ -76,7 +76,6 @@ func duInternalFile(fileName string, info *Infoblock) (err error) {
 func duInternalDirectory(directoryName string, globalinfo *Infoblock) (err error) {
 	localinfo := Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, sync.Mutex{}}
 	localinfo.number_of_subdirs += 1 // this directory
-	//files, err := os.ReadDir(directoryName)
 	files, err := readDirWithRetry(directoryName, 1000000, 2)
 	if err != nil {
 		return err
@@ -90,10 +89,9 @@ func duInternalDirectory(directoryName string, globalinfo *Infoblock) (err error
 				fmt.Printf("Error getting info for regular file %v: %v\n", fullPath, err)
 			}
 		} else if file.Type().IsDir() {
-			// store directories for later descending to be a little more cache efficient
 			subdirs = append(subdirs, fullPath)
 		} else {
-			addAccordingType(file.Type(), &localinfo)
+			countAccordingType(file.Type(), &localinfo)
 			// fmt.Printf("Skipping file of type %v: %v\n", typeToString(file.Type()), fullPath)
 		}
 	}
@@ -132,7 +130,7 @@ func addAll(globalinfo, localinfo *Infoblock) {
 	(*globalinfo).mutex.Unlock()
 }
 
-func addAccordingType(mode fs.FileMode, info *Infoblock) {
+func countAccordingType(mode fs.FileMode, info *Infoblock) {
 	switch mode {
 	case fs.ModeDir:
 		(*info).number_of_subdirs++

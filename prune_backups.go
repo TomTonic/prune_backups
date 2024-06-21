@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -17,8 +18,13 @@ func main() {
 
 	pruneDirName := flag.String("dir", "<none>", "REQUIRED. The name of the directory that shall be pruned.")
 	toDeleteDirName := flag.String("to_directory", "to_delete", "OPTIONAL. The name of the directory where the pruned directories shall be moved.")
-	showStats := flag.Bool("stats", false, "OPTIONAL. Show total size of linked and unlinked files in the pruned directories if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
-	showVersion := flag.Bool("version", false, "OPTIONAL. Show version/build information and exit if `true`. (default false)")                            // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
+	var showStats *bool
+	if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+		showStats = flag.Bool("stats", false, "OPTIONAL. Show total size of linked and unlinked files in the pruned directories if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
+	} else {
+		showStats = flag.Bool("stats", false, "OPTIONAL. Show total size of linked and unlinked files in the pruned directories. (Not supported for your OS!)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
+	}
+	showVersion := flag.Bool("version", false, "OPTIONAL. Show version/build information and exit if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
 	verbosity := flag.Int("v", 1, "OPTIONAL. Set verbosity. O - mute, 1 - some, 2 - a lot.")
 
 	flag.CommandLine.SetOutput(os.Stdout)
@@ -114,14 +120,37 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		fmt.Println("I moved", successful_move_counter, "directories to", delPath)
 	}
 	if showStats {
-		//number_of_unlinked_files, size_of_unlinked_files, number_of_linked_files, size_of_linked_files, number_of_subdirs := du(delPath)
 		info := du(delPath)
-		fmt.Printf("The directory %v now contains %v bytes in %v unlinked files and %v bytes in %v hard-linked files in a total of %v directories.\n", delPath,
-			info.size_of_unlinked_files,
-			info.number_of_unlinked_files,
-			info.size_of_linked_files,
-			info.number_of_linked_files,
-			info.number_of_subdirs)
+		fmt.Printf("The directory %v now contains:\n", delPath)
+		printNiceNumbr(" - unlinked files            ", uint64(info.number_of_unlinked_files))
+		printNiceBytes(" - bytes in unlinked files   ", info.size_of_unlinked_files)
+		printNiceNumbr(" - hard-linked files         ", uint64(info.number_of_linked_files))
+		printNiceBytes(" - bytes in hard-linked files", info.size_of_linked_files)
+		fmt.Print("Uncounted special files:\n")
+		printNiceNumbr(" - directories               ", uint64(info.number_of_subdirs))
+		printNiceNumbr(" - append-only-flagged files ", uint64(info.nr_apnd))
+		printNiceNumbr(" - exclusive-flagged files   ", uint64(info.nr_excl))
+		printNiceNumbr(" - temporary-flagged files   ", uint64(info.nr_tmp))
+		printNiceNumbr(" - symlinks                  ", uint64(info.nr_sym))
+		printNiceNumbr(" - device nodes              ", uint64(info.nr_dev))
+		printNiceNumbr(" - named pipes               ", uint64(info.nr_pipe))
+		printNiceNumbr(" - sockets                   ", uint64(info.nr_sock))
+	}
+}
+
+func printNiceNumbr(prefix string, val uint64) {
+	if val > 999 {
+		fmt.Printf("%s : %v (i.e. %v)\n", prefix, val, formatSI(val))
+	} else {
+		fmt.Printf("%s : %v\n", prefix, val)
+	}
+}
+
+func printNiceBytes(prefix string, val uint64) {
+	if val > 999 {
+		fmt.Printf("%s : %v Bytes (i.e. %vBytes)\n", prefix, val, formatSI(val))
+	} else {
+		fmt.Printf("%s : %v Bytes\n", prefix, val)
 	}
 }
 

@@ -33,8 +33,7 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 	*/
 
 	// alternative code
-	//f, err := os.Open(filename)
-	f, err := openFileWithRetry(filename, 10000000, 2)
+	f, err := openFileWithRetry(filename, 1000000, 2)
 	if err != nil {
 		return 0, 0, fmt.Errorf("error calling os.Open (%s)", err)
 	}
