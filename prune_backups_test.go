@@ -16,11 +16,11 @@ func compareArrays(result []string, want []string, t *testing.T) {
 	}
 	for i := 0; i < max; i++ {
 		if i < len(want) && i < len(result) {
-			t.Logf("   wanted: " + want[i] + ", got: " + result[i])
+			t.Logf("   wanted: %v, got: %v", want[i], result[i])
 		} else if i < len(want) {
-			t.Logf("   wanted: " + want[i] + ", got: <no more values>")
+			t.Logf("   wanted: %v, got: <no more values>", want[i])
 		} else {
-			t.Logf("   wanted: <no more values>, got: " + result[i])
+			t.Logf("   wanted: <no more values>, got: %v", result[i])
 		}
 	}
 }
