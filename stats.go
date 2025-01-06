@@ -24,30 +24,34 @@ type Infoblock struct {
 	nr_dev                   int
 	nr_pipe                  int
 	nr_sock                  int
-	mutex                    sync.Mutex
+}
+
+type infoblock_internal struct {
+	ib    Infoblock
+	mutex sync.Mutex
 }
 
 func du(dir_name_or_file_name string) Infoblock {
-	result := Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, sync.Mutex{}}
+	result := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
 	if ok, err := isDirectory(dir_name_or_file_name); ok {
 		if err != nil {
 			fmt.Printf("Error identifying %v: %v\n", dir_name_or_file_name, err)
-			return result
+			return result.ib
 		}
 		err = duInternalDirectory(dir_name_or_file_name, &result)
 		if err != nil {
 			fmt.Printf("Error reading directory %v: %v\n", dir_name_or_file_name, err)
-			return result
+			return result.ib
 		}
 	} else {
 		err = duInternalFile(dir_name_or_file_name, &result)
 		if err != nil {
 			fmt.Printf("Error reading file %v: %v\n", dir_name_or_file_name, err)
-			return result
+			return result.ib
 		}
 	}
 	//fmt.Printf("total size of unlinked files: %v bytes; total size of linked files: %v bytes", size_of_unlinked_files, size_of_linked_files)
-	return result
+	return result.ib
 }
 
 func isDirectory(path string) (bool, error) {
@@ -58,24 +62,24 @@ func isDirectory(path string) (bool, error) {
 	return fileInfo.IsDir(), nil
 }
 
-func duInternalFile(fileName string, info *Infoblock) (err error) {
+func duInternalFile(fileName string, info *infoblock_internal) (err error) {
 	f_size, f_links, err := getSizeAndLinkCount(fileName)
 	if err != nil {
 		return err
 	}
 	if f_links == 1 {
-		(*info).number_of_unlinked_files += 1
-		(*info).size_of_unlinked_files += f_size
+		(*info).ib.number_of_unlinked_files += 1
+		(*info).ib.size_of_unlinked_files += f_size
 	} else {
-		(*info).number_of_linked_files += 1
-		(*info).size_of_linked_files += f_size
+		(*info).ib.number_of_linked_files += 1
+		(*info).ib.size_of_linked_files += f_size
 	}
 	return nil
 }
 
-func duInternalDirectory(directoryName string, globalinfo *Infoblock) (err error) {
-	localinfo := Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, sync.Mutex{}}
-	localinfo.number_of_subdirs += 1 // this directory
+func duInternalDirectory(directoryName string, globalinfo *infoblock_internal) (err error) {
+	localinfo := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
+	localinfo.ib.number_of_subdirs += 1 // this directory
 	files, err := readDirWithRetry(directoryName, 1000000, 2)
 	if err != nil {
 		return err
@@ -113,48 +117,48 @@ func duInternalDirectory(directoryName string, globalinfo *Infoblock) (err error
 	return nil
 }
 
-func addAll(globalinfo, localinfo *Infoblock) {
+func addAll(globalinfo, localinfo *infoblock_internal) {
 	(*globalinfo).mutex.Lock()
-	(*globalinfo).size_of_unlinked_files += (*localinfo).size_of_unlinked_files
-	(*globalinfo).size_of_linked_files += (*localinfo).size_of_linked_files
-	(*globalinfo).number_of_unlinked_files += (*localinfo).number_of_unlinked_files
-	(*globalinfo).number_of_linked_files += (*localinfo).number_of_linked_files
-	(*globalinfo).number_of_subdirs += (*localinfo).number_of_subdirs
-	(*globalinfo).nr_apnd += (*localinfo).nr_apnd
-	(*globalinfo).nr_excl += (*localinfo).nr_excl
-	(*globalinfo).nr_tmp += (*localinfo).nr_tmp
-	(*globalinfo).nr_sym += (*localinfo).nr_sym
-	(*globalinfo).nr_dev += (*localinfo).nr_dev
-	(*globalinfo).nr_pipe += (*localinfo).nr_pipe
-	(*globalinfo).nr_sock += (*localinfo).nr_sock
+	(*globalinfo).ib.size_of_unlinked_files += (*localinfo).ib.size_of_unlinked_files
+	(*globalinfo).ib.size_of_linked_files += (*localinfo).ib.size_of_linked_files
+	(*globalinfo).ib.number_of_unlinked_files += (*localinfo).ib.number_of_unlinked_files
+	(*globalinfo).ib.number_of_linked_files += (*localinfo).ib.number_of_linked_files
+	(*globalinfo).ib.number_of_subdirs += (*localinfo).ib.number_of_subdirs
+	(*globalinfo).ib.nr_apnd += (*localinfo).ib.nr_apnd
+	(*globalinfo).ib.nr_excl += (*localinfo).ib.nr_excl
+	(*globalinfo).ib.nr_tmp += (*localinfo).ib.nr_tmp
+	(*globalinfo).ib.nr_sym += (*localinfo).ib.nr_sym
+	(*globalinfo).ib.nr_dev += (*localinfo).ib.nr_dev
+	(*globalinfo).ib.nr_pipe += (*localinfo).ib.nr_pipe
+	(*globalinfo).ib.nr_sock += (*localinfo).ib.nr_sock
 	(*globalinfo).mutex.Unlock()
 }
 
-func countAccordingType(mode fs.FileMode, info *Infoblock) {
+func countAccordingType(mode fs.FileMode, info *infoblock_internal) {
 	switch mode {
 	case fs.ModeDir:
-		(*info).number_of_subdirs++
+		(*info).ib.number_of_subdirs++
 		return
 	case fs.ModeAppend:
-		(*info).nr_apnd++
+		(*info).ib.nr_apnd++
 		return
 	case fs.ModeExclusive:
-		(*info).nr_excl++
+		(*info).ib.nr_excl++
 		return
 	case fs.ModeTemporary:
-		(*info).nr_tmp++
+		(*info).ib.nr_tmp++
 		return
 	case fs.ModeSymlink:
-		(*info).nr_sym++
+		(*info).ib.nr_sym++
 		return
 	case fs.ModeDevice:
-		(*info).nr_dev++
+		(*info).ib.nr_dev++
 		return
 	case fs.ModeNamedPipe:
-		(*info).nr_pipe++
+		(*info).ib.nr_pipe++
 		return
 	case fs.ModeSocket:
-		(*info).nr_sock++
+		(*info).ib.nr_sock++
 		return
 	}
 }
