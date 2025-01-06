@@ -759,7 +759,10 @@ func Test_getDateDirectoriesNotMatchingAnyPrefix_Verbosity(t *testing.T) {
 
 	// Read the captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
 	capturedOutput := buf.String()
 
 	// Check if the output is as expected
@@ -791,7 +794,10 @@ func Test_printNiceNumbr(t *testing.T) {
 
 	// Read the captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
 	capturedOutput := buf.String()
 
 	// Check if the output is as expected
@@ -823,7 +829,10 @@ func Test_printNiceBytes(t *testing.T) {
 
 	// Read the captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
 	capturedOutput := buf.String()
 
 	// Check if the output is as expected
