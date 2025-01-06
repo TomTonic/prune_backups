@@ -1,10 +1,14 @@
-# prune_backups [![Go](https://github.com/TomTonic/prune_backups/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/TomTonic/prune_backups/actions/workflows/go.yml)
+# Tidy RSync Backup Directories
 
-A small tool to prune a bunch of backup directories to the typical pattern of one per hour for a day, one per day for a month, and then one per month.
+[![Tests](https://github.com/TomTonic/prune_backups/actions/workflows/coverage.yml/badge.svg?branch=main)](https://github.com/TomTonic/prune_backups/actions/workflows/coverage.yml)
+![Coverage](https://raw.githubusercontent.com/TomTonic/prune_backups/badges/.badges/main/coverage.svg)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9890/badge)](https://www.bestpractices.dev/projects/9890)
+
+`prune_backups` is a small tool to tidy (prune) incremental backups created with rsync (and other backup tools) to the typical pattern of one per hour for a day, one per day for a month, and then one per month.
 
 ## What does the tool do?
 
-The tool `prune_backups` takes one directory name as command line argument. It will look for subdirectories in the given directory that start with a certain naming pattern: YYYY-MM-DD_HH-mm. The tool interpretes these directory names as dates and keeps exactly one of these directories for the current hour, one for the last hour and so on. The tool will always keep the latest and move all other directories to a newly created subdirectory 'to_delete'. **The tool only moves directories and does not actually delete anything!**
+The tool `prune_backups` takes one directory name as command line argument. It looks for subdirectories in that directory matching the naming pattern YYYY-MM-DD_HH-mm. The tool interpretes these directory names as dates and keeps exactly one of these directories for the current hour, one for the last hour and so on. The tool will always keep the latest and move all other directories into a subdirectory 'to_delete'. **The tool ONLY MOVES directories and DOES NOT ACTUALLY DELETE anything!**
 
 ## What will a pruned directory look like?
 
