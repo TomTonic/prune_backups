@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -735,5 +736,99 @@ func Test_getDateDirectoriesNotMatchingAnyPrefix(t *testing.T) {
 				t.Errorf("getDateDirectoriesNotMatchingAnyPrefix() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_getDateDirectoriesNotMatchingAnyPrefix_Verbosity(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// no output for verbosity 1
+	getDateDirectoriesNotMatchingAnyPrefix([]string{"a", "b", "c"}, []string{}, 1)
+
+	// output for verbosity 2
+	getDateDirectoriesNotMatchingAnyPrefix([]string{"1", "2", "3"}, []string{}, 2)
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "Skipping 1 as it is not in date format.\nSkipping 2 as it is not in date format.\nSkipping 3 as it is not in date format.\n"
+	if capturedOutput != expectedOutput {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
+	}
+}
+
+func Test_printNiceNumbr(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printNiceNumbr("a", 1)
+	printNiceNumbr("b", 10)
+	printNiceNumbr("c", 100)
+	printNiceNumbr("d", 1000)
+	printNiceNumbr("e", 10000)
+	printNiceNumbr("f", 100000)
+	printNiceNumbr("g", 1000000)
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "a : 1\nb : 10\nc : 100\nd : 1000 (i.e. 1.0 k)\ne : 10000 (i.e. 10.0 k)\nf : 100000 (i.e. 100.0 k)\ng : 1000000 (i.e. 1.0 M)\n"
+	if capturedOutput != expectedOutput {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
+	}
+}
+
+func Test_printNiceBytes(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printNiceBytes("a", 1)
+	printNiceBytes("b", 10)
+	printNiceBytes("c", 100)
+	printNiceBytes("d", 1000)
+	printNiceBytes("e", 10000)
+	printNiceBytes("f", 100000)
+	printNiceBytes("g", 1000000)
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "a : 1 Bytes\nb : 10 Bytes\nc : 100 Bytes\nd : 1000 Bytes (i.e. 1.0 kBytes)\ne : 10000 Bytes (i.e. 10.0 kBytes)\nf : 100000 Bytes (i.e. 100.0 kBytes)\ng : 1000000 Bytes (i.e. 1.0 MBytes)\n"
+	if capturedOutput != expectedOutput {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
 	}
 }
