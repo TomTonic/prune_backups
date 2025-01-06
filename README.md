@@ -1,6 +1,11 @@
-# prune_backups [![Go](https://github.com/TomTonic/prune_backups/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/TomTonic/prune_backups/actions/workflows/go.yml)
+# Tidy rsync Backup Directories
 
-A small tool to prune a bunch of backup directories to the typical pattern of one per hour for a day, one per day for a month, and then one per month.
+[![Go Report Card](https://goreportcard.com/badge/github.com/TomTonic/Set3)](https://goreportcard.com/report/github.com/TomTonic/Set3)
+[![Tests](https://github.com/TomTonic/prune_backups/actions/workflows/coverage.yml/badge.svg?branch=main)](https://github.com/TomTonic/prune_backups/actions/workflows/coverage.yml)
+![coverage](https://raw.githubusercontent.com/TomTonic/prune_backups/badges/.badges/main/coverage.svg)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/en/projects/9890/badge)](https://www.bestpractices.dev/en/projects/9890)
+
+`prune_backups` is a small tool to prune (tidy) a bunch of backup directories to the typical pattern of one per hour for a day, one per day for a month, and then one per month.
 
 ## What does the tool do?
 
