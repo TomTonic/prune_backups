@@ -1,0 +1,36 @@
+name: Test Coverage
+
+on: [push]
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Go
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests and generate coverage report
+        run: go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
+
+      - name: Generate coverage badge
+        uses: vladopajic/go-test-coverage@efb6737ee1bdb4b2180a000b2f9a309a0fbaef8a # v2.11.1
+        with:
+          profile: cover.out
+          local-prefix: github.com/TomTonic/prune_backups
+          threshold-total: 25
+          git-branch: badges
+          git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
