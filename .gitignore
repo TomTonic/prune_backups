@@ -1,3 +1,4 @@
 bin/
 .trunk/
 prune_backups.exe
+prune_backups

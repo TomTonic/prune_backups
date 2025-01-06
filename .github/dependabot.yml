@@ -9,6 +9,12 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    assignees:
+      - "TomTonic"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps-upd"
 
   - package-ecosystem: github-actions
     directory: /
