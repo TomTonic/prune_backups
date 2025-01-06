@@ -1,7 +1,7 @@
 # Tidy RSync Backup Directories
 
 [![Automated Tests](https://github.com/TomTonic/prune_backups/actions/workflows/coverage.yml/badge.svg?branch=main)](https://github.com/TomTonic/prune_backups/actions/workflows/coverage.yml)
-[![Test Coverage](https://raw.githubusercontent.com/TomTonic/prune_backups/badges/.badges/main/coverage.svg)
+![Test Coverage](https://raw.githubusercontent.com/TomTonic/prune_backups/badges/.badges/main/coverage.svg)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9890/badge)](https://www.bestpractices.dev/projects/9890)
 
 `prune_backups` is a small tool to tidy (prune) incremental backups created with rsync (and other backup tools) to the typical pattern of one per hour for a day, one per day for a month, and then one per month.
