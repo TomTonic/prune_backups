@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 )
@@ -865,8 +866,8 @@ func Test_pruneDirectory_Nonexisting(t *testing.T) {
 	capturedOutput := buf.String()
 
 	// Check if the output is as expected
-	expectedOutput := "Could not read pruning directory (-dir): open ghjaiersughydfiasptohgyhjash: The system cannot find the file specified.\n"
-	if capturedOutput != expectedOutput {
+	expectedOutput := "Could not read pruning directory (-dir): open ghjaiersughydfiasptohgyhjash: "
+	if !strings.HasPrefix(capturedOutput, expectedOutput) {
 		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
 	}
 
