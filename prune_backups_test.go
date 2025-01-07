@@ -841,3 +841,36 @@ func Test_printNiceBytes(t *testing.T) {
 		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
 	}
 }
+
+func Test_pruneDirectory_Nonexisting(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	exitcode := pruneDirectory("ghjaiersughydfiasptohgyhjash", time.Now(), "", 0, false)
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "Could not read pruning directory (-dir): open ghjaiersughydfiasptohgyhjash: The system cannot find the file specified.\n"
+	if capturedOutput != expectedOutput {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
+	}
+
+	if exitcode != -1 {
+		t.Errorf("Expected -1 but got %q", exitcode)
+	}
+}
