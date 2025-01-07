@@ -29,8 +29,6 @@ jobs:
       - name: Generate coverage badge
         uses: vladopajic/go-test-coverage@efb6737ee1bdb4b2180a000b2f9a309a0fbaef8a # v2.11.1
         with:
-          profile: cover.out
-          local-prefix: github.com/TomTonic/prune_backups
-          threshold-total: 25
+          config: ./.testcoverage.yml
           git-branch: badges
           git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
