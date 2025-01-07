@@ -44,16 +44,17 @@ func main() {
 
 	now := time.Now()
 
-	pruneDirectory(*pruneDirName, now, *toDeleteDirName, *verbosity, *showStats)
+	exitcode := pruneDirectory(*pruneDirName, now, *toDeleteDirName, *verbosity, *showStats)
+	os.Exit(exitcode)
 }
 
-func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, verbosity int, showStats bool) {
+func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, verbosity int, showStats bool) (exitcode int) {
 	files, err := os.ReadDir(pruneDirName)
 	if err != nil {
 		fmt.Print("Could not read pruning directory (-dir): ")
 		fmt.Println(err)
-		flag.PrintDefaults()
-		os.Exit(1)
+		exitcode = -1
+		return
 	}
 
 	dirs := make([]string, 0)
@@ -91,7 +92,8 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 				fmt.Println(" -", dir)
 			}
 		}
-		os.Exit(1)
+		exitcode = -1
+		return
 	}
 
 	/* now we have collected all directory names that need to be moved in to_delete. next we will create the target directory and actually move them */
@@ -136,6 +138,8 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		printNiceNumbr(" - named pipes               ", uint64(info.nr_pipe))
 		printNiceNumbr(" - sockets                   ", uint64(info.nr_sock))
 	}
+	exitcode = 0
+	return
 }
 
 func printNiceNumbr(prefix string, val uint64) {
