@@ -280,8 +280,8 @@ func getFiltersForDailys(start_date time.Time, existingDirs []string) ([]string,
 	case 30:
 		{
 			switch daysM0 {
-			case 28, 29:
-				// illegal in a month with a 30st day
+			// case 28, 29:
+			// impossible in a month with a 30st day if daysInMonth() works correctly
 			case 30:
 				// The 30 days affect ONE month M0 and M0 is completely covered with daily backups.
 				// pin 30 normal dailys and test nothing. continue with M1
@@ -298,8 +298,8 @@ func getFiltersForDailys(start_date time.Time, existingDirs []string) ([]string,
 	case 31:
 		{
 			switch daysM0 {
-			case 28, 29, 30:
-				// illegal in a month with a 31st day
+			// case 28, 29, 30:
+			// impossible in a month with a 31st day if daysInMonth() works correctly
 			case 31:
 				// The 30 days affect ONE month M0 and M0 is NOT completely covered with daily backups.
 				// pin 0 normal dailys and test 30 dailys in in M0. continue with M1
