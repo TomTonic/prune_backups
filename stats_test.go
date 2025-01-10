@@ -6,6 +6,109 @@ import (
 	"testing"
 )
 
+func TestIsDirectory(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected bool
+	}{
+		{"./testdata", true},     // Assuming testdata is a directory
+		{"./go.mod", false},      // Assuming go.mod is a file
+		{"./nonexistent", false}, // Non-existent path
+	}
+
+	for _, test := range tests {
+		result, err := isDirectory(test.path)
+		if err != nil && test.expected {
+			t.Errorf("isDirectory(%s) returned error: %v", test.path, err)
+		}
+		if result != test.expected {
+			t.Errorf("isDirectory(%s) = %v; want %v", test.path, result, test.expected)
+		}
+	}
+}
+
+func TestOpenFileWithRetry(t *testing.T) {
+	tests := []struct {
+		filename        string
+		retries         int
+		maxwait_seconds int
+		expectError     bool
+	}{
+		{"go.mod", 3, 1, false},             // Assuming go.mod exists
+		{"nonexistentfile.txt", 3, 1, true}, // Non-existent file
+		{"irrelevant", 0, 1, true},          // try 0 times -> shall return cannot open file error
+	}
+
+	for _, test := range tests {
+		file, err := openFileWithRetry(test.filename, test.retries, test.maxwait_seconds)
+		if test.expectError {
+			if err == nil {
+				t.Errorf("expected error for file %s, but got none", test.filename)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("unexpected error for file %s: %v", test.filename, err)
+			}
+			if file != nil {
+				file.Close()
+			}
+		}
+	}
+}
+
+func TestReadDirWithRetry(t *testing.T) {
+	tests := []struct {
+		directoryname   string
+		retries         int
+		maxwait_seconds int
+		expectError     bool
+	}{
+		{"testdata", 3, 1, false},      // Assuming testdata exists
+		{"nonexistentdir", 3, 1, true}, // Non-existent directory
+		{"irrelevant", 0, 1, true},     // try 0 times -> shall return cannot open file error
+	}
+
+	for _, test := range tests {
+		direntries, err := readDirWithRetry(test.directoryname, test.retries, test.maxwait_seconds)
+		if test.expectError {
+			if err == nil {
+				t.Errorf("expected error for directory %s, but got none", test.directoryname)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("unexpected error for directory %s: %v", test.directoryname, err)
+			} else {
+				t.Logf("Directory: %s, Entries: %d", test.directoryname, len(direntries))
+			}
+		}
+	}
+}
+
+func TestGetSizeAndLinkCount(t *testing.T) {
+	tests := []struct {
+		filename    string
+		expectError bool
+	}{
+		{"go.mod", false},             // Assuming go.mod exists
+		{"nonexistentfile.txt", true}, // Non-existent file
+	}
+
+	for _, test := range tests {
+		size, linkCount, err := getSizeAndLinkCount(test.filename)
+		if test.expectError {
+			if err == nil {
+				t.Errorf("expected error for file %s, but got none", test.filename)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("unexpected error for file %s: %v", test.filename, err)
+			} else {
+				t.Logf("File: %s, Size: %d, Link Count: %d", test.filename, size, linkCount)
+			}
+		}
+	}
+}
+
 func Test_du1(t *testing.T) {
 	tests := []struct {
 		name                     string
