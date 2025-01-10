@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -310,4 +311,28 @@ func createTestfile(name string, size int) (err error) {
 		return err
 	}
 	return nil
+}
+
+func TestCountAccordingType(t *testing.T) {
+	tests := []struct {
+		mode     fs.FileMode
+		expected func(info *infoblock_internal) int
+	}{
+		{fs.ModeDir, func(info *infoblock_internal) int { return info.ib.number_of_subdirs }},
+		{fs.ModeAppend, func(info *infoblock_internal) int { return info.ib.nr_apnd }},
+		{fs.ModeExclusive, func(info *infoblock_internal) int { return info.ib.nr_excl }},
+		{fs.ModeTemporary, func(info *infoblock_internal) int { return info.ib.nr_tmp }},
+		{fs.ModeSymlink, func(info *infoblock_internal) int { return info.ib.nr_sym }},
+		{fs.ModeDevice, func(info *infoblock_internal) int { return info.ib.nr_dev }},
+		{fs.ModeNamedPipe, func(info *infoblock_internal) int { return info.ib.nr_pipe }},
+		{fs.ModeSocket, func(info *infoblock_internal) int { return info.ib.nr_sock }},
+	}
+
+	for _, test := range tests {
+		info := &infoblock_internal{}
+		countAccordingType(test.mode, info)
+		if test.expected(info) != 1 {
+			t.Errorf("expected 1, got %d for mode %v", test.expected(info), test.mode)
+		}
+	}
 }
