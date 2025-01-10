@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -107,6 +109,35 @@ func TestGetSizeAndLinkCount(t *testing.T) {
 				t.Logf("File: %s, Size: %d, Link Count: %d", test.filename, size, linkCount)
 			}
 		}
+	}
+}
+
+func Test_du0(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	_ = du("nonexistingfileordirectoryname5648623485762456")
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "Error reading file nonexistingfileordirectoryname5648623485762456: error calling os.Open ("
+	if !strings.HasPrefix(capturedOutput, expectedOutput) {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
 	}
 }
 
