@@ -122,24 +122,28 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		fmt.Println("I moved", successful_move_counter, "directories to", delPath)
 	}
 	if showStats {
-		info := du(delPath)
-		fmt.Printf("The directory %v now contains:\n", delPath)
-		printNiceNumbr(" - unlinked files            ", uint64(info.number_of_unlinked_files))
-		printNiceBytes(" - bytes in unlinked files   ", info.size_of_unlinked_files)
-		printNiceNumbr(" - hard-linked files         ", uint64(info.number_of_linked_files))
-		printNiceBytes(" - bytes in hard-linked files", info.size_of_linked_files)
-		fmt.Print("Uncounted special files:\n")
-		printNiceNumbr(" - directories               ", uint64(info.number_of_subdirs))
-		printNiceNumbr(" - append-only-flagged files ", uint64(info.nr_apnd))
-		printNiceNumbr(" - exclusive-flagged files   ", uint64(info.nr_excl))
-		printNiceNumbr(" - temporary-flagged files   ", uint64(info.nr_tmp))
-		printNiceNumbr(" - symlinks                  ", uint64(info.nr_sym))
-		printNiceNumbr(" - device nodes              ", uint64(info.nr_dev))
-		printNiceNumbr(" - named pipes               ", uint64(info.nr_pipe))
-		printNiceNumbr(" - sockets                   ", uint64(info.nr_sock))
+		showStatsOf(delPath)
 	}
 	exitcode = 0
 	return
+}
+
+func showStatsOf(delPath string) {
+	info := du(delPath)
+	fmt.Printf("The directory %v now contains:\n", delPath)
+	printNiceNumbr(" - unlinked files            ", uint64(info.number_of_unlinked_files))
+	printNiceBytes(" - bytes in unlinked files   ", info.size_of_unlinked_files)
+	printNiceNumbr(" - hard-linked files         ", uint64(info.number_of_linked_files))
+	printNiceBytes(" - bytes in hard-linked files", info.size_of_linked_files)
+	fmt.Print("Uncounted special files:\n")
+	printNiceNumbr(" - directories               ", uint64(info.number_of_subdirs))
+	printNiceNumbr(" - append-only-flagged files ", uint64(info.nr_apnd))
+	printNiceNumbr(" - exclusive-flagged files   ", uint64(info.nr_excl))
+	printNiceNumbr(" - temporary-flagged files   ", uint64(info.nr_tmp))
+	printNiceNumbr(" - symlinks                  ", uint64(info.nr_sym))
+	printNiceNumbr(" - device nodes              ", uint64(info.nr_dev))
+	printNiceNumbr(" - named pipes               ", uint64(info.nr_pipe))
+	printNiceNumbr(" - sockets                   ", uint64(info.nr_sock))
 }
 
 func printNiceNumbr(prefix string, val uint64) {
