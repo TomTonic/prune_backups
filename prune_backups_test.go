@@ -928,3 +928,33 @@ func Test_pruneDirectory_Nonexisting(t *testing.T) {
 		t.Errorf("Expected -1 but got %q", exitcode)
 	}
 }
+
+func TestShowStatusOf(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	showStatsOf("./testdata/")
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "The directory ./testdata/ now contains:\n - unlinked files             : 4\n - bytes in unlinked files    : 20 Bytes\n - hard-linked files          : 0\n - bytes in hard-linked files : 0 Bytes\nUncounted special files:\n - directories                : 5\n - append-only-flagged files  : 0\n - exclusive-flagged files    : 0\n - temporary-flagged files    : 0\n - symlinks                   : 0\n - device nodes               : 0\n - named pipes                : 0\n - sockets                    : 0\n"
+
+	if !strings.HasPrefix(capturedOutput, expectedOutput) {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
+	}
+}
