@@ -10,29 +10,13 @@ import (
 )
 
 var commitInfo = func() string {
-	//var version = "<unknown>"
-	var vcs_revision = "<unknown>"
-	var vcs_time = "<unknown>"
-	var vcs_modified = "<unknown>"
 	if info, ok := debug.ReadBuildInfo(); ok {
-		/*
-			if info.Main.Version != "" {
-				version = info.Main.Version // currently (Go 1.22.*) always returns "(devel)" - so ignore it. wait for https://github.com/golang/go/issues/50603 (ETA Go 1.24)
-			}
-		*/
-		for _, setting := range info.Settings {
-			if setting.Key == "vcs.revision" {
-				vcs_revision = setting.Value
-			}
-			if setting.Key == "vcs.time" {
-				vcs_time = setting.Value
-			}
-			if setting.Key == "vcs.modified" {
-				vcs_modified = setting.Value
-			}
+		if info.Main.Version != "" {
+			version := info.Main.Version
+			return version
 		}
 	}
-	return "rev " + vcs_revision + " from " + vcs_time + ", modified=" + vcs_modified
+	return "untagged"
 }()
 
 func isFlagPassed(name string) bool {
