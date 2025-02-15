@@ -91,7 +91,7 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 	delPath := filepath.Join(pruneDirName, toDeleteDirName)
 	err2 := os.MkdirAll(delPath, 0755)
 	if err2 != nil {
-		errorMessage := fmt.Sprintf("Error creating directory \"%s\": %s", delPath, err)
+		errorMessage := fmt.Sprintf("Error creating directory \"%s\": %s", delPath, err2)
 		if verbosity > 0 {
 			movedDirs := "\nI would have moved the following directories there:\n"
 			for _, dir := range to_delete {
