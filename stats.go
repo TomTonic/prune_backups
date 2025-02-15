@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -30,6 +31,10 @@ type infoblock_internal struct {
 	ib    Infoblock
 	mutex sync.Mutex
 }
+
+var (
+	Stats_SupportedOS = runtime.GOOS == "linux" || runtime.GOOS == "windows"
+)
 
 func du(dir_name_or_file_name string) Infoblock {
 	result := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}

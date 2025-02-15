@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/alecthomas/kong"
 )
 
 func compareArrays(result []string, want []string, t *testing.T) {
@@ -25,6 +28,93 @@ func compareArrays(result []string, want []string, t *testing.T) {
 			t.Logf("   wanted: <no more values>, got: %v", result[i])
 		}
 	}
+}
+
+func TestVersionCmd_Run(t *testing.T) {
+	commitInfo = "test_commitInfo"
+	cmd := VersionCmd{}
+	dummy := CLI{}
+
+	output := captureOutput(func() {
+		err := cmd.Run(&dummy)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	expectedOutput := "prune_backups test_commitInfo\n"
+	if output != expectedOutput {
+		t.Fatalf("expected %q, got %q", expectedOutput, output)
+	}
+}
+
+// captureOutput captures the output of a function for testing
+func captureOutput(f func()) string {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	f()
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	return buf.String()
+}
+
+func TestCLI_PruneCommand(t *testing.T) {
+	cli := CLI{}
+	parser := kong.Must(&cli,
+		kong.Name("prune_backups"),
+	)
+
+	args := []string{"prune", "ghjaiersughydfiasptohgyhjash"}
+	ctx, err := parser.Parse(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedOutput := "Could not read pruning directory: open ghjaiersughydfiasptohgyhjash: "
+
+	err = ctx.Run(&cli)
+	if err != nil {
+		if !strings.HasPrefix(err.Error(), expectedOutput) {
+			t.Fatalf("expected %q, got %q", expectedOutput, err.Error())
+		}
+	} else {
+		t.Fatalf("expected error")
+	}
+}
+
+func TestCLI_PruneCommandStatsNotSupported(t *testing.T) {
+	prev := Stats_SupportedOS
+	Stats_SupportedOS = false
+	defer func() {
+		Stats_SupportedOS = prev
+	}()
+
+	cli := CLI{}
+	parser := kong.Must(&cli,
+		kong.Name("prune_backups"),
+	)
+
+	args := []string{"prune", "./testdata/", "--stats"}
+	ctx, err := parser.Parse(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err = ctx.Run(&cli)
+	if err == nil {
+		t.Fatalf("expected an error!")
+	}
+	expectedText := "stats flag not supported for your OS"
+	if !strings.Contains(err.Error(), expectedText) {
+		t.Fatalf("expected %q, got %q", expectedText, err)
+	}
+
 }
 
 func Test_pruneDirectoryHourlyForFourMonths(t *testing.T) {
@@ -897,35 +987,16 @@ func Test_printNiceBytes(t *testing.T) {
 }
 
 func Test_pruneDirectory_Nonexisting(t *testing.T) {
-	// Save the original stdout
-	originalStdout := os.Stdout
+	expectedOutput := "Could not read pruning directory: open ghjaiersughydfiasptohgyhjash: "
 
-	// Create a pipe to capture the output
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	err := pruneDirectory("ghjaiersughydfiasptohgyhjash", time.Now(), "", 0, false)
 
-	exitcode := pruneDirectory("ghjaiersughydfiasptohgyhjash", time.Now(), "", 0, false)
-
-	// Close the writer and restore the original stdout
-	w.Close()
-	os.Stdout = originalStdout
-
-	// Read the captured output
-	var buf bytes.Buffer
-	_, err := buf.ReadFrom(r)
-	if err != nil {
-		t.Errorf("Error reading back from stdout: %v", err)
-	}
-	capturedOutput := buf.String()
-
-	// Check if the output is as expected
-	expectedOutput := "Could not read pruning directory (-dir): open ghjaiersughydfiasptohgyhjash: "
-	if !strings.HasPrefix(capturedOutput, expectedOutput) {
-		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
-	}
-
-	if exitcode != -1 {
-		t.Errorf("Expected -1 but got %q", exitcode)
+	if err == nil {
+		t.Errorf("Expected an error but got nil")
+	} else {
+		if !strings.HasPrefix(err.Error(), expectedOutput) {
+			t.Errorf("Expected %q but got %q", expectedOutput, err.Error())
+		}
 	}
 }
 
