@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"runtime/debug"
 	"strconv"
@@ -18,16 +17,6 @@ var commitInfo = func() string {
 	}
 	return "untagged"
 }()
-
-func isFlagPassed(name string) bool {
-	found := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			found = true
-		}
-	})
-	return found
-}
 
 func getAllButFirstMatchingPrefix(from []string, prefix string) []string {
 	var result = []string{} // make sure it's not nil

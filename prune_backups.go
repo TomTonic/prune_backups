@@ -1,60 +1,67 @@
 package main
 
 import (
-	"flag"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/alecthomas/kong"
 )
 
-func main() {
+type CLI struct {
+	Version VersionCmd `cmd:"" help:"Show version/build information and exit."`
+	Prune   PruneCmd   `cmd:"" help:"Prune directories and move them to a specified directory."`
+}
 
-	/* Processing command line parameters */
+type VersionCmd struct{}
 
-	pruneDirName := flag.String("dir", "<none>", "REQUIRED. The name of the directory that shall be pruned.")
-	toDeleteDirName := flag.String("to_directory", "to_delete", "OPTIONAL. The name of the directory where the pruned directories shall be moved.")
-	var showStats *bool
-	if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
-		showStats = flag.Bool("stats", false, "OPTIONAL. Show total size of linked and unlinked files in the pruned directories if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
-	} else {
-		showStats = flag.Bool("stats", false, "OPTIONAL. Show total size of linked and unlinked files in the pruned directories. (Not supported for your OS!)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
-	}
-	showVersion := flag.Bool("version", false, "OPTIONAL. Show version/build information and exit if `true`. (default false)") // caution: go will neither print the type nor the default for bool flags with default false. see https://github.com/golang/go/issues/63150
-	verbosity := flag.Int("v", 1, "OPTIONAL. Set verbosity. O - mute, 1 - some, 2 - a lot.")
+type PruneCmd struct {
+	ToDir     string `help:"OPTIONAL. The name of the directory where the pruned directories shall be moved." default:"to_delete" short:"d"`
+	Stats     bool   `help:"OPTIONAL. Show total size of linked and unlinked files in the pruned directories." default:"false" short:"s"`
+	Verbosity int    `help:"OPTIONAL. Set verbosity. 0 - mute, 1 - some, 2 - a lot." default:"1" short:"v"`
+	Dir       string `arg:"" help:"REQUIRED. The name of the directory that shall be pruned." required:"true"`
+}
 
-	flag.CommandLine.SetOutput(os.Stdout)
-	flag.Parse()
+func (v *VersionCmd) Run(cli *CLI) error {
+	fmt.Println("prune_backups", commitInfo)
+	return nil
+}
 
-	if *showVersion {
-		fmt.Println("prune_backups", commitInfo)
-		os.Exit(0)
-	}
-
-	// workaroud as REQUIRED parameters are not supported by the flag package
-	if !isFlagPassed("dir") {
-		fmt.Println("Pruning directory missing (-dir).")
-		flag.PrintDefaults()
-		os.Exit(1)
+func (p *PruneCmd) Run(cli *CLI) error {
+	if p.Stats && !Stats_SupportedOS {
+		return errors.New("stats flag not supported for your OS")
 	}
 
 	now := time.Now()
 
-	exitcode := pruneDirectory(*pruneDirName, now, *toDeleteDirName, *verbosity, *showStats)
-	os.Exit(exitcode)
+	err := pruneDirectory(*&p.Dir, now, *&p.ToDir, *&p.Verbosity, *&p.Stats)
+	return err
 }
 
-func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, verbosity int, showStats bool) (exitcode int) {
+func main() {
+	cli := CLI{}
+	ctx := kong.Parse(&cli,
+		kong.Name("prune_backups"),
+		kong.Description("Prune directories and move them to a specified directory."),
+		kong.UsageOnError(),
+	)
+	err := ctx.Run(&cli)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+}
+
+func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, verbosity int, showStats bool) error {
 	files, err := os.ReadDir(pruneDirName)
 	if err != nil {
-		fmt.Print("Could not read pruning directory (-dir): ")
-		fmt.Println(err)
-		exitcode = -1
-		return
+		errorMessage := fmt.Sprintf("Could not read pruning directory: %s", err)
+		return errors.New(errorMessage)
 	}
 
 	dirs := make([]string, 0)
@@ -84,16 +91,15 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 	delPath := filepath.Join(pruneDirName, toDeleteDirName)
 	err2 := os.MkdirAll(delPath, 0755)
 	if err2 != nil {
-		fmt.Print("Error creating directory \"", delPath, "\": ")
-		fmt.Println(err)
+		errorMessage := fmt.Sprintf("Error creating directory \"%s\": %s", delPath, err)
 		if verbosity > 0 {
-			fmt.Println("I woud have moved the following directories there:")
+			movedDirs := "\nI would have moved the following directories there:\n"
 			for _, dir := range to_delete {
-				fmt.Println(" -", dir)
+				movedDirs += fmt.Sprintf(" - %s\n", dir)
 			}
+			errorMessage += movedDirs
 		}
-		exitcode = -1
-		return
+		return errors.New(errorMessage)
 	}
 
 	/* now we have collected all directory names that need to be moved in to_delete. next we will create the target directory and actually move them */
@@ -124,8 +130,7 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 	if showStats {
 		showStatsOf(delPath)
 	}
-	exitcode = 0
-	return
+	return nil
 }
 
 func showStatsOf(delPath string) {
