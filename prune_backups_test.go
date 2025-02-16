@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -1028,4 +1029,232 @@ func TestShowStatusOf(t *testing.T) {
 	if !strings.HasPrefix(capturedOutput, expectedOutput) {
 		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
 	}
+}
+func Test_pruneDirectory(t *testing.T) {
+	t.Run("Test_pruneDirectory_ErrorCreatingDirectory", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+			// When you set a directory to 0444 permissions in Windows, it means that the directory
+			// is readable by everyone but not writable or executable by anyone. However, Windows
+			// allows the creation of child directories even with these restrictive permissions because
+			// the permissions for new directories are determined by the permissions of the parent
+			// directory and the user's permissions
+		}
+
+		// Setup
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		// Simulate a read-only file system by setting the directory permissions to read-only
+		err = os.Chmod(pruneDir, 0444)
+		if err != nil {
+			t.Fatalf("Failed to set directory permissions: %v", err)
+		}
+
+		// Test
+		err = pruneDirectory(pruneDir, time.Now(), "to_delete", 0, false)
+
+		// Verify
+		if err == nil {
+			t.Fatalf("Expected error, got nil")
+		}
+		expectedError := "Error creating directory"
+		if !strings.Contains(err.Error(), expectedError) {
+			t.Fatalf("Expected error to contain %q, got %q", expectedError, err.Error())
+		}
+	})
+
+	t.Run("Test_pruneDirectory_ErrorMovingDirectory", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+			// When you set a directory to 0444 permissions in Windows, it means that the directory
+			// is readable by everyone but not writable or executable by anyone. However, Windows
+			// allows the creation of child directories even with these restrictive permissions because
+			// the permissions for new directories are determined by the permissions of the parent
+			// directory and the user's permissions
+		}
+
+		// Setup
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		// Create some directories to prune
+		dirsToCreate := []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+			"someothername",
+		}
+		for _, dir := range dirsToCreate {
+			subdir := filepath.Join(pruneDir, dir)
+			err := os.Mkdir(subdir, 0444)
+			if err != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, err)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC) // thus, 2024-05-31_23-49 and 2024-06-17_09-49 should not be deleted
+
+		// Capture output
+		output := captureOutput(func() {
+			// Test
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 0, false)
+		})
+
+		// Verify
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		expectedError := "Error moving "
+		if !strings.Contains(output, expectedError) {
+			t.Fatalf("Expected error to contain %q, got %q", expectedError, output)
+		}
+	})
+
+	t.Run("Test_pruneDirectory_Success", func(t *testing.T) {
+		// Setup
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		// Create some directories to prune
+		dirsToCreate := []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+			"someothername",
+		}
+		for _, dir := range dirsToCreate {
+			err := os.Mkdir(filepath.Join(pruneDir, dir), 0755)
+			if err != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, err)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC) // thus, 2024-05-31_23-49 and 2024-06-17_09-49 should not be deleted
+		movedDirs := []string{
+			"2024-06-15_23-49",
+			"2024-06-16_23-49",
+			"2024-06-17_07-49",
+			"2024-06-17_08-49",
+		}
+
+		// Capture output
+		output := captureOutput(func() {
+			// Test
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 1, false)
+		})
+
+		// Verify
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		expectOutput(t, output, "I found 7 directories in ")
+		unexpectOutput(t, output, "Moving ")
+		for _, d := range movedDirs {
+			unexpectOutput(t, output, d)
+		}
+		unexpectOutput(t, output, "... done.")
+		expectOutput(t, output, "I moved 4 directories to ")
+
+		// Check that the directories were moved
+		toDeleteDir := filepath.Join(pruneDir, "to_delete")
+		for _, dir := range movedDirs {
+			_, err := os.Stat(filepath.Join(toDeleteDir, dir))
+			if os.IsNotExist(err) {
+				t.Fatalf("Expected directory %s to be moved to %s, but it was not", dir, toDeleteDir)
+			}
+		}
+
+		// Check that the directories that should not be moved are still in the original location
+		for _, dir := range dirsToCreate {
+			if !contains(movedDirs, dir) {
+				_, err := os.Stat(filepath.Join(pruneDir, dir))
+				if os.IsNotExist(err) {
+					t.Fatalf("Expected directory %s to remain in %s, but it was moved", dir, pruneDir)
+				}
+			}
+		}
+	})
+
+	t.Run("Test_pruneDirectory_VerboseOutput", func(t *testing.T) {
+		// Setup
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		// Create some directories to prune
+		dirsToCreate := []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+		}
+		for _, dir := range dirsToCreate {
+			err := os.Mkdir(filepath.Join(pruneDir, dir), 0755)
+			if err != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, err)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC) // thus, 2024-05-31_23-49 and 2024-06-17_09-49 should not be deleted
+		movedDirs := []string{
+			"2024-06-15_23-49",
+			"2024-06-16_23-49",
+			"2024-06-17_07-49",
+			"2024-06-17_08-49",
+		}
+
+		// Capture output
+		output := captureOutput(func() {
+			// Test
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 2, false)
+		})
+
+		// Verify
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		expectOutput(t, output, "I found 6 directories in ")
+		expectOutput(t, output, "Moving ")
+		for _, d := range movedDirs {
+			expectOutput(t, output, d)
+		}
+		expectOutput(t, output, "... done.")
+		expectOutput(t, output, "I moved 4 directories to ")
+
+	})
+}
+
+func expectOutput(t *testing.T, output string, expectedOutput string) {
+	if !strings.Contains(output, expectedOutput) {
+		t.Fatalf("Expected output to contain %q, got %q", expectedOutput, output)
+	}
+}
+
+func unexpectOutput(t *testing.T, output string, expectedOutput string) {
+	if strings.Contains(output, expectedOutput) {
+		t.Fatalf("Expected output NOT to contain %q, got %q", expectedOutput, output)
+	}
+}
+
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
