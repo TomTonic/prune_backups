@@ -61,7 +61,10 @@ func captureOutput(f func()) string {
 	os.Stdout = old
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, err := io.Copy(&buf, r)
+	if err != nil {
+		return err.Error()
+	}
 	return buf.String()
 }
 
@@ -187,7 +190,10 @@ func Test_pruneDirectoryYesterdayMissing(t *testing.T) {
 }
 
 func pruneAndCheck(t *testing.T, test_dir string, test_time_pruning time.Time, expect_remaining []string, number_expect_deleted int) {
-	pruneDirectory(test_dir, test_time_pruning, "to_delete", 0, false)
+	err := pruneDirectory(test_dir, test_time_pruning, "to_delete", 0, false)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
 
 	// get resulting directories and sort descending
 	result := getAllDirectories(t, test_dir)
