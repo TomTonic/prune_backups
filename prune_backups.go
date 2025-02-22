@@ -39,7 +39,7 @@ func (p *PruneCmd) Run(cli *CLI) error {
 
 	now := time.Now()
 
-	err := pruneDirectory(*&p.Dir, now, *&p.ToDir, *&p.Verbosity, *&p.Stats)
+	err := pruneDirectory(p.Dir, now, p.ToDir, p.Verbosity, p.Stats)
 	return err
 }
 
