@@ -1,12 +1,18 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/alecthomas/kong"
 )
 
 func compareArrays(result []string, want []string, t *testing.T) {
@@ -23,6 +29,96 @@ func compareArrays(result []string, want []string, t *testing.T) {
 			t.Logf("   wanted: <no more values>, got: %v", result[i])
 		}
 	}
+}
+
+func TestVersionCmd_Run(t *testing.T) {
+	commitInfo = "test_commitInfo"
+	cmd := VersionCmd{}
+	dummy := CLI{}
+
+	output := captureOutput(func() {
+		err := cmd.Run(&dummy)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	expectedOutput := "prune_backups test_commitInfo\n"
+	if output != expectedOutput {
+		t.Fatalf("expected %q, got %q", expectedOutput, output)
+	}
+}
+
+// captureOutput captures the output of a function for testing
+func captureOutput(f func()) string {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	f()
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	_, err := io.Copy(&buf, r)
+	if err != nil {
+		return err.Error()
+	}
+	return buf.String()
+}
+
+func TestCLI_PruneCommand(t *testing.T) {
+	cli := CLI{}
+	parser := kong.Must(&cli,
+		kong.Name("prune_backups"),
+	)
+
+	args := []string{"prune", "ghjaiersughydfiasptohgyhjash"}
+	ctx, err := parser.Parse(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedOutput := "Could not read pruning directory: open ghjaiersughydfiasptohgyhjash: "
+
+	err = ctx.Run(&cli)
+	if err != nil {
+		if !strings.HasPrefix(err.Error(), expectedOutput) {
+			t.Fatalf("expected %q, got %q", expectedOutput, err.Error())
+		}
+	} else {
+		t.Fatalf("expected error")
+	}
+}
+
+func TestCLI_PruneCommandStatsNotSupported(t *testing.T) {
+	prev := Stats_SupportedOS
+	Stats_SupportedOS = false
+	defer func() {
+		Stats_SupportedOS = prev
+	}()
+
+	cli := CLI{}
+	parser := kong.Must(&cli,
+		kong.Name("prune_backups"),
+	)
+
+	args := []string{"prune", "./testdata/", "--stats"}
+	ctx, err := parser.Parse(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err = ctx.Run(&cli)
+	if err == nil {
+		t.Fatalf("expected an error!")
+	}
+	expectedText := "stats flag not supported for your OS"
+	if !strings.Contains(err.Error(), expectedText) {
+		t.Fatalf("expected %q, got %q", expectedText, err)
+	}
+
 }
 
 func Test_pruneDirectoryHourlyForFourMonths(t *testing.T) {
@@ -94,7 +190,10 @@ func Test_pruneDirectoryYesterdayMissing(t *testing.T) {
 }
 
 func pruneAndCheck(t *testing.T, test_dir string, test_time_pruning time.Time, expect_remaining []string, number_expect_deleted int) {
-	pruneDirectory(test_dir, test_time_pruning, "to_delete", 0, false)
+	err := pruneDirectory(test_dir, test_time_pruning, "to_delete", 0, false)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
 
 	// get resulting directories and sort descending
 	result := getAllDirectories(t, test_dir)
@@ -330,7 +429,7 @@ var testsFor30Dailys = []struct {
 		},
 	},
 	{
-		name:       "Test Case 5a - 30th of the month, has >=30 days (only 1 month coverage), all existing",
+		name:       "Test Case 5a - 30th of the month, has >30 days (only 1 month coverage), all existing",
 		test_time:  time.Date(2024, 4, 30, 23, 54, 21, 0, time.UTC),
 		next_month: time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
 		existing_dirs: []string{
@@ -350,7 +449,7 @@ var testsFor30Dailys = []struct {
 		},
 	},
 	{
-		name:          "Test Case 5b - 30th of the month, has >=30 days (only 1 month coverage), none existing",
+		name:          "Test Case 5b - 30th of the month, has 30 days (only 1 month coverage), none existing",
 		test_time:     time.Date(2024, 4, 30, 23, 54, 21, 0, time.UTC),
 		next_month:    time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
 		existing_dirs: []string{},
@@ -360,6 +459,19 @@ var testsFor30Dailys = []struct {
 			"2024-04-18", "2024-04-17", "2024-04-16", "2024-04-15", "2024-04-14", "2024-04-13",
 			"2024-04-12", "2024-04-11", "2024-04-10", "2024-04-09", "2024-04-08", "2024-04-07",
 			"2024-04-06", "2024-04-05", "2024-04-04", "2024-04-03", "2024-04-02", "2024-04-01",
+		},
+	},
+	{
+		name:          "Test Case 5c - 30th of the month, has 31 days (only 1 month coverage), none existing",
+		test_time:     time.Date(2024, 5, 30, 23, 54, 21, 0, time.UTC),
+		next_month:    time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
+		existing_dirs: []string{},
+		filter_dates: []string{
+			"2024-05-30", "2024-05-29", "2024-05-28", "2024-05-27", "2024-05-26", "2024-05-25",
+			"2024-05-24", "2024-05-23", "2024-05-22", "2024-05-21", "2024-05-20", "2024-05-19",
+			"2024-05-18", "2024-05-17", "2024-05-16", "2024-05-15", "2024-05-14", "2024-05-13",
+			"2024-05-12", "2024-05-11", "2024-05-10", "2024-05-09", "2024-05-08", "2024-05-07",
+			"2024-05-06", "2024-05-05", "2024-05-04", "2024-05-03", "2024-05-02", "2024-05-01",
 		},
 	},
 	{
@@ -389,6 +501,46 @@ var testsFor30Dailys = []struct {
 		existing_dirs: []string{},
 		filter_dates: []string{
 			"2024-05",
+		},
+	},
+	{
+		name:       "Test Case 7a - 2nd of the month, prev 28 days, all existing",
+		test_time:  time.Date(2023, 3, 2, 20, 34, 58, 0, time.UTC),
+		next_month: time.Date(2023, 1, 15, 0, 0, 0, 0, time.UTC),
+		existing_dirs: []string{
+			"2023-03-02_20-34", "2023-03-01_20-34", "2023-02-28_20-34", "2023-02-27_20-34", "2023-02-26_20-34", "2023-02-25_20-34",
+			"2023-02-24_20-34", "2023-02-23_20-34", "2023-02-22_20-34", "2023-02-21_20-34", "2023-02-20_20-34", "2023-02-19_20-34",
+			"2023-02-18_20-34", "2023-02-17_20-34", "2023-02-16_20-34", "2023-02-15_20-34", "2023-02-14_20-34", "2023-02-13_20-34",
+			"2023-02-12_20-34", "2023-02-11_20-34", "2023-02-10_20-34", "2023-02-09_20-34", "2023-02-08_20-34", "2023-02-07_20-34",
+			"2023-02-06_20-34", "2023-02-05_20-34", "2023-02-04_20-34", "2023-02-03_20-34", "2023-02-02_20-34", "2023-02-01_20-34",
+			"2023-01-31_20-34", "2023-01-30_20-34", "2023-01-29_20-34", "2023-01-28_20-34", "2023-01-27_20-34", "2023-01-26_20-34",
+		},
+		filter_dates: []string{
+			"2023-03-02", "2023-03-01", "2023-02-28", "2023-02-27", "2023-02-26", "2023-02-25",
+			"2023-02-24", "2023-02-23", "2023-02-22", "2023-02-21", "2023-02-20", "2023-02-19",
+			"2023-02-18", "2023-02-17", "2023-02-16", "2023-02-15", "2023-02-14", "2023-02-13",
+			"2023-02-12", "2023-02-11", "2023-02-10", "2023-02-09", "2023-02-08", "2023-02-07",
+			"2023-02-06", "2023-02-05", "2023-02-04", "2023-02-03", "2023-02-02", "2023-02-01",
+		},
+	},
+	{
+		name:       "Test Case 7b - 2nd of the month, prev 29 days, all existing",
+		test_time:  time.Date(2024, 3, 2, 23, 54, 21, 0, time.UTC),
+		next_month: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		existing_dirs: []string{
+			"2024-03-02_23-54", "2024-03-01_23-54", "2024-02-29_23-54", "2024-02-28_23-54", "2024-02-27_23-54", "2024-02-26_23-54",
+			"2024-02-25_23-54", "2024-02-24_23-54", "2024-02-23_23-54", "2024-02-22_23-54", "2024-02-21_23-54", "2024-02-20_23-54",
+			"2024-02-19_23-54", "2024-02-18_23-54", "2024-02-17_23-54", "2024-02-16_23-54", "2024-02-15_23-54", "2024-02-14_23-54",
+			"2024-02-13_23-54", "2024-02-12_23-54", "2024-02-11_23-54", "2024-02-10_23-54", "2024-02-09_23-54", "2024-02-08_23-54",
+			"2024-02-07_23-54", "2024-02-06_23-54", "2024-02-05_23-54", "2024-02-04_23-54", "2024-02-03_23-54", "2024-02-02_23-54",
+			"2024-02-01_23-54", "2024-01-31_23-54", "2024-01-30_23-54", "2024-01-29_23-54", "2024-01-28_23-54", "2024-01-27_23-54",
+		},
+		filter_dates: []string{
+			"2024-03-02", "2024-03-01", "2024-02-29", "2024-02-28", "2024-02-27", "2024-02-26",
+			"2024-02-25", "2024-02-24", "2024-02-23", "2024-02-22", "2024-02-21", "2024-02-20",
+			"2024-02-19", "2024-02-18", "2024-02-17", "2024-02-16", "2024-02-15", "2024-02-14",
+			"2024-02-13", "2024-02-12", "2024-02-11", "2024-02-10", "2024-02-09", "2024-02-08",
+			"2024-02-07", "2024-02-06", "2024-02-05", "2024-02-04", "2024-02-03", "2024-02-02",
 		},
 	},
 }
@@ -736,4 +888,379 @@ func Test_getDateDirectoriesNotMatchingAnyPrefix(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_getDateDirectoriesNotMatchingAnyPrefix_Verbosity(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// no output for verbosity 1
+	getDateDirectoriesNotMatchingAnyPrefix([]string{"a", "b", "c"}, []string{}, 1)
+
+	// output for verbosity 2
+	getDateDirectoriesNotMatchingAnyPrefix([]string{"1", "2", "3"}, []string{}, 2)
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "Skipping 1 as it is not in date format.\nSkipping 2 as it is not in date format.\nSkipping 3 as it is not in date format.\n"
+	if capturedOutput != expectedOutput {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
+	}
+}
+
+func Test_printNiceNumbr(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printNiceNumbr("a", 1)
+	printNiceNumbr("b", 10)
+	printNiceNumbr("c", 100)
+	printNiceNumbr("d", 1000)
+	printNiceNumbr("e", 10000)
+	printNiceNumbr("f", 100000)
+	printNiceNumbr("g", 1000000)
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "a : 1\nb : 10\nc : 100\nd : 1000 (i.e. 1.0 k)\ne : 10000 (i.e. 10.0 k)\nf : 100000 (i.e. 100.0 k)\ng : 1000000 (i.e. 1.0 M)\n"
+	if capturedOutput != expectedOutput {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
+	}
+}
+
+func Test_printNiceBytes(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printNiceBytes("a", 1)
+	printNiceBytes("b", 10)
+	printNiceBytes("c", 100)
+	printNiceBytes("d", 1000)
+	printNiceBytes("e", 10000)
+	printNiceBytes("f", 100000)
+	printNiceBytes("g", 1000000)
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "a : 1 Bytes\nb : 10 Bytes\nc : 100 Bytes\nd : 1000 Bytes (i.e. 1.0 kBytes)\ne : 10000 Bytes (i.e. 10.0 kBytes)\nf : 100000 Bytes (i.e. 100.0 kBytes)\ng : 1000000 Bytes (i.e. 1.0 MBytes)\n"
+	if capturedOutput != expectedOutput {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
+	}
+}
+
+func Test_pruneDirectory_Nonexisting(t *testing.T) {
+	expectedOutput := "Could not read pruning directory: open ghjaiersughydfiasptohgyhjash: "
+
+	err := pruneDirectory("ghjaiersughydfiasptohgyhjash", time.Now(), "", 0, false)
+
+	if err == nil {
+		t.Errorf("Expected an error but got nil")
+	} else {
+		if !strings.HasPrefix(err.Error(), expectedOutput) {
+			t.Errorf("Expected %q but got %q", expectedOutput, err.Error())
+		}
+	}
+}
+
+func TestShowStatusOf(t *testing.T) {
+	// Save the original stdout
+	originalStdout := os.Stdout
+
+	// Create a pipe to capture the output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	showStatsOf("./testdata/")
+
+	// Close the writer and restore the original stdout
+	w.Close()
+	os.Stdout = originalStdout
+
+	// Read the captured output
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Errorf("Error reading back from stdout: %v", err)
+	}
+	capturedOutput := buf.String()
+
+	// Check if the output is as expected
+	expectedOutput := "The directory ./testdata/ now contains:\n - unlinked files             : 4\n - bytes in unlinked files    : 20 Bytes\n - hard-linked files          : 0\n - bytes in hard-linked files : 0 Bytes\nUncounted special files:\n - directories                : 5\n - append-only-flagged files  : 0\n - exclusive-flagged files    : 0\n - temporary-flagged files    : 0\n - symlinks                   : 0\n - device nodes               : 0\n - named pipes                : 0\n - sockets                    : 0\n"
+
+	if !strings.HasPrefix(capturedOutput, expectedOutput) {
+		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
+	}
+}
+func Test_pruneDirectory(t *testing.T) {
+	t.Run("Test_pruneDirectory_ErrorCreatingDirectory", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+			// When you set a directory to 0444 permissions in Windows, it means that the directory
+			// is readable by everyone but not writable or executable by anyone. However, Windows
+			// allows the creation of child directories even with these restrictive permissions because
+			// the permissions for new directories are determined by the permissions of the parent
+			// directory and the user's permissions
+		}
+
+		// Setup
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		// Simulate a read-only file system by setting the directory permissions to read-only
+		err = os.Chmod(pruneDir, 0444)
+		if err != nil {
+			t.Fatalf("Failed to set directory permissions: %v", err)
+		}
+
+		// Test
+		err = pruneDirectory(pruneDir, time.Now(), "to_delete", 0, false)
+
+		// Verify
+		if err == nil {
+			t.Fatalf("Expected error, got nil")
+		}
+		expectedError := "Error creating directory"
+		if !strings.Contains(err.Error(), expectedError) {
+			t.Fatalf("Expected error to contain %q, got %q", expectedError, err.Error())
+		}
+	})
+
+	t.Run("Test_pruneDirectory_ErrorMovingDirectory", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+			// When you set a directory to 0444 permissions in Windows, it means that the directory
+			// is readable by everyone but not writable or executable by anyone. However, Windows
+			// allows the creation of child directories even with these restrictive permissions because
+			// the permissions for new directories are determined by the permissions of the parent
+			// directory and the user's permissions
+		}
+
+		// Setup
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		// Create some directories to prune
+		dirsToCreate := []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+			"someothername",
+		}
+		for _, dir := range dirsToCreate {
+			subdir := filepath.Join(pruneDir, dir)
+			err := os.Mkdir(subdir, 0444)
+			if err != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, err)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC) // thus, 2024-05-31_23-49 and 2024-06-17_09-49 should not be deleted
+
+		// Capture output
+		output := captureOutput(func() {
+			// Test
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 0, false)
+		})
+
+		// Verify
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		expectedError := "Error moving "
+		if !strings.Contains(output, expectedError) {
+			t.Fatalf("Expected error to contain %q, got %q", expectedError, output)
+		}
+	})
+
+	t.Run("Test_pruneDirectory_Success", func(t *testing.T) {
+		// Setup
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		// Create some directories to prune
+		dirsToCreate := []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+			"someothername",
+		}
+		for _, dir := range dirsToCreate {
+			err := os.Mkdir(filepath.Join(pruneDir, dir), 0755)
+			if err != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, err)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC) // thus, 2024-05-31_23-49 and 2024-06-17_09-49 should not be deleted
+		movedDirs := []string{
+			"2024-06-15_23-49",
+			"2024-06-16_23-49",
+			"2024-06-17_07-49",
+			"2024-06-17_08-49",
+		}
+
+		// Capture output
+		output := captureOutput(func() {
+			// Test
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 1, false)
+		})
+
+		// Verify
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		expectOutput(t, output, "I found 7 directories in ")
+		unexpectOutput(t, output, "Moving ")
+		for _, d := range movedDirs {
+			unexpectOutput(t, output, d)
+		}
+		unexpectOutput(t, output, "... done.")
+		expectOutput(t, output, "I moved 4 directories to ")
+
+		// Check that the directories were moved
+		toDeleteDir := filepath.Join(pruneDir, "to_delete")
+		for _, dir := range movedDirs {
+			_, err := os.Stat(filepath.Join(toDeleteDir, dir))
+			if os.IsNotExist(err) {
+				t.Fatalf("Expected directory %s to be moved to %s, but it was not", dir, toDeleteDir)
+			}
+		}
+
+		// Check that the directories that should not be moved are still in the original location
+		for _, dir := range dirsToCreate {
+			if !contains(movedDirs, dir) {
+				_, err := os.Stat(filepath.Join(pruneDir, dir))
+				if os.IsNotExist(err) {
+					t.Fatalf("Expected directory %s to remain in %s, but it was moved", dir, pruneDir)
+				}
+			}
+		}
+	})
+
+	t.Run("Test_pruneDirectory_VerboseOutput", func(t *testing.T) {
+		// Setup
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		// Create some directories to prune
+		dirsToCreate := []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+		}
+		for _, dir := range dirsToCreate {
+			err := os.Mkdir(filepath.Join(pruneDir, dir), 0755)
+			if err != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, err)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC) // thus, 2024-05-31_23-49 and 2024-06-17_09-49 should not be deleted
+		movedDirs := []string{
+			"2024-06-15_23-49",
+			"2024-06-16_23-49",
+			"2024-06-17_07-49",
+			"2024-06-17_08-49",
+		}
+
+		// Capture output
+		output := captureOutput(func() {
+			// Test
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 2, false)
+		})
+
+		// Verify
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		expectOutput(t, output, "I found 6 directories in ")
+		expectOutput(t, output, "Moving ")
+		for _, d := range movedDirs {
+			expectOutput(t, output, d)
+		}
+		expectOutput(t, output, "... done.")
+		expectOutput(t, output, "I moved 4 directories to ")
+
+	})
+}
+
+func expectOutput(t *testing.T, output string, expectedOutput string) {
+	if !strings.Contains(output, expectedOutput) {
+		t.Fatalf("Expected output to contain %q, got %q", expectedOutput, output)
+	}
+}
+
+func unexpectOutput(t *testing.T, output string, expectedOutput string) {
+	if strings.Contains(output, expectedOutput) {
+		t.Fatalf("Expected output NOT to contain %q, got %q", expectedOutput, output)
+	}
+}
+
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }

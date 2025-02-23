@@ -1,5 +1,8 @@
 module prune_backups
 
-go 1.23.4
+go 1.24.0
 
-require golang.org/x/sys v0.29.0
+require (
+	github.com/alecthomas/kong v1.8.1
+	golang.org/x/sys v0.30.0
+)
