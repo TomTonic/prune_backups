@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -15,20 +16,20 @@ import (
 
 type CLI struct {
 	Version VersionCmd `cmd:"" help:"Show version/build information and exit."`
-	Prune   PruneCmd   `cmd:"" help:"Prune directories and move them to a specified directory."`
+	From    PruneCmd   `cmd:"" help:"Prune subdirectories from <dir> and move them to a 'to_delete' subdirectory (default, will be created automatically in <dir>) or --to a given location."`
 }
 
 type VersionCmd struct{}
 
 type PruneCmd struct {
-	ToDir     string `help:"OPTIONAL. The name of the directory where the pruned directories shall be moved." default:"to_delete" short:"d"`
+	To        string `help:"OPTIONAL. The name of the directory where the pruned directories will be moved." default:"to_delete" short:"t"`
 	Stats     bool   `help:"OPTIONAL. Show total size of linked and unlinked files in the pruned directories." default:"false" short:"s"`
 	Verbosity int    `help:"OPTIONAL. Set verbosity. 0 - mute, 1 - some, 2 - a lot." default:"1" short:"v"`
-	Dir       string `arg:"" help:"REQUIRED. The name of the directory that shall be pruned." required:"true"`
+	Dir       string `arg:"" help:"REQUIRED. The name of the directory that will be pruned. Make sure the user running prune_backups has r/w access rights to it." required:"true"`
 }
 
 func (v *VersionCmd) Run(cli *CLI) error {
-	fmt.Println("prune_backups", commitInfo)
+	fmt.Println("prune_backups", runtime.GOARCH, runtime.GOOS, commitInfo)
 	return nil
 }
 
@@ -39,7 +40,7 @@ func (p *PruneCmd) Run(cli *CLI) error {
 
 	now := time.Now()
 
-	err := pruneDirectory(p.Dir, now, p.ToDir, p.Verbosity, p.Stats)
+	err := pruneDirectory(p.Dir, now, p.To, p.Verbosity, p.Stats)
 	return err
 }
 
@@ -47,8 +48,8 @@ func main() {
 	cli := CLI{}
 	ctx := kong.Parse(&cli,
 		kong.Name("prune_backups"),
-		kong.Description("Prune directories and move them to a specified directory."),
-		kong.UsageOnError(),
+		kong.Description("A lightweight tool designed to elegantly trim backup directories based on filename conventions, maintaining one per hour for a day, one per day for a month, and one per month thereafter. The pattern is YYYY-MM-DD_HH-mm. Within each time slot, the latest directory is retained."),
+		// kong.UsageOnError(),
 	)
 	err := ctx.Run(&cli)
 	if err != nil {

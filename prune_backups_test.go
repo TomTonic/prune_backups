@@ -43,7 +43,7 @@ func TestVersionCmd_Run(t *testing.T) {
 		}
 	})
 
-	expectedOutput := "prune_backups test_commitInfo\n"
+	expectedOutput := "prune_backups " + runtime.GOARCH + " " + runtime.GOOS + " test_commitInfo\n"
 	if output != expectedOutput {
 		t.Fatalf("expected %q, got %q", expectedOutput, output)
 	}
@@ -74,7 +74,7 @@ func TestCLI_PruneCommand(t *testing.T) {
 		kong.Name("prune_backups"),
 	)
 
-	args := []string{"prune", "ghjaiersughydfiasptohgyhjash"}
+	args := []string{"from", "ghjaiersughydfiasptohgyhjash"}
 	ctx, err := parser.Parse(args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -104,7 +104,7 @@ func TestCLI_PruneCommandStatsNotSupported(t *testing.T) {
 		kong.Name("prune_backups"),
 	)
 
-	args := []string{"prune", "./testdata/", "--stats"}
+	args := []string{"from", "./testdata/", "--stats"}
 	ctx, err := parser.Parse(args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
