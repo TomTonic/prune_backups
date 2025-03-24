@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -57,7 +58,10 @@ func captureOutput(f func()) string {
 
 	f()
 
-	w.Close()
+	closerror := w.Close()
+	if closerror != nil {
+		return fmt.Sprintf("Error closing writer: %v", closerror)
+	}
 	os.Stdout = old
 
 	var buf bytes.Buffer
@@ -147,7 +151,10 @@ func Test_pruneDirectoryHourlyForFourMonths(t *testing.T) {
 
 	pruneAndCheck(t, test_dir, test_time_prune, want, wanted_number_of_deleted)
 
-	defer os.RemoveAll(test_dir) // clean up
+	err := os.RemoveAll(test_dir) // clean up
+	if err != nil {
+		t.Errorf("Error removing temporary directory: %v", err)
+	}
 }
 
 func Test_pruneDirectoryYesterdayMissing(t *testing.T) {
@@ -186,7 +193,10 @@ func Test_pruneDirectoryYesterdayMissing(t *testing.T) {
 
 	pruneAndCheck(t, test_dir, test_time_prune, wanted, wanted_number_of_deleted)
 
-	defer os.RemoveAll(test_dir) // clean up
+	err := os.RemoveAll(test_dir) // clean up
+	if err != nil {
+		t.Errorf("Error removing temporary directory: %v", err)
+	}
 }
 
 func pruneAndCheck(t *testing.T, test_dir string, test_time_pruning time.Time, expect_remaining []string, number_expect_deleted int) {
@@ -905,7 +915,10 @@ func Test_getDateDirectoriesNotMatchingAnyPrefix_Verbosity(t *testing.T) {
 	getDateDirectoriesNotMatchingAnyPrefix([]string{"1", "2", "3"}, []string{}, 2)
 
 	// Close the writer and restore the original stdout
-	w.Close()
+	closerror := w.Close()
+	if closerror != nil {
+		t.Errorf("Error closing writer: %v", closerror)
+	}
 	os.Stdout = originalStdout
 
 	// Read the captured output
@@ -940,7 +953,10 @@ func Test_printNiceNumbr(t *testing.T) {
 	printNiceNumbr("g", 1000000)
 
 	// Close the writer and restore the original stdout
-	w.Close()
+	closerror := w.Close()
+	if closerror != nil {
+		t.Errorf("Error closing writer: %v", closerror)
+	}
 	os.Stdout = originalStdout
 
 	// Read the captured output
@@ -975,7 +991,10 @@ func Test_printNiceBytes(t *testing.T) {
 	printNiceBytes("g", 1000000)
 
 	// Close the writer and restore the original stdout
-	w.Close()
+	closerror := w.Close()
+	if closerror != nil {
+		t.Errorf("Error closing writer: %v", closerror)
+	}
 	os.Stdout = originalStdout
 
 	// Read the captured output
@@ -1018,7 +1037,10 @@ func TestShowStatusOf(t *testing.T) {
 	showStatsOf("./testdata/")
 
 	// Close the writer and restore the original stdout
-	w.Close()
+	closerror := w.Close()
+	if closerror != nil {
+		t.Errorf("Error closing writer: %v", closerror)
+	}
 	os.Stdout = originalStdout
 
 	// Read the captured output
