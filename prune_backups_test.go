@@ -991,7 +991,10 @@ func Test_printNiceBytes(t *testing.T) {
 	printNiceBytes("g", 1000000)
 
 	// Close the writer and restore the original stdout
-	w.Close()
+	closerror := w.Close()
+	if closerror != nil {
+		t.Errorf("Error closing writer: %v", closerror)
+	}
 	os.Stdout = originalStdout
 
 	// Read the captured output
@@ -1034,7 +1037,10 @@ func TestShowStatusOf(t *testing.T) {
 	showStatsOf("./testdata/")
 
 	// Close the writer and restore the original stdout
-	w.Close()
+	closerror := w.Close()
+	if closerror != nil {
+		t.Errorf("Error closing writer: %v", closerror)
+	}
 	os.Stdout = originalStdout
 
 	// Read the captured output

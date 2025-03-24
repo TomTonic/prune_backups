@@ -126,7 +126,10 @@ func Test_du0(t *testing.T) {
 	_ = du("nonexistingfileordirectoryname5648623485762456")
 
 	// Close the writer and restore the original stdout
-	w.Close()
+	closerror := w.Close()
+	if closerror != nil {
+		t.Errorf("Error closing writer: %v", closerror)
+	}
 	os.Stdout = originalStdout
 
 	// Read the captured output
@@ -226,7 +229,9 @@ func Test_du3(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error creating temporary directory: ", err)
 	}
-	defer os.RemoveAll(dir) // clean up
+	defer func() {
+		_ = os.RemoveAll(dir) // clean up
+	}()
 
 	fname1 := filepath.Join(dir, "testfile1")
 	fname2 := filepath.Join(dir, "testfile2")
@@ -270,7 +275,9 @@ func Test_du4(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error creating temporary directory: ", err)
 	}
-	defer os.RemoveAll(dir) // clean up
+	defer func() {
+		_ = os.RemoveAll(dir) // clean up
+	}()
 
 	fname1 := filepath.Join(dir, "testfile1")
 	fname2 := filepath.Join(dir, "testfile2")
