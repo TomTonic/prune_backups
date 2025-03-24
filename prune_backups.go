@@ -218,12 +218,12 @@ func getFiltersForYesterday(current_time time.Time, remaining_hourly_backups int
 
 	yesterday := current_time.Add(-24 * time.Hour)
 
-	var year int = yesterday.Year()
-	var month int = (int)(yesterday.Month())
-	var day int = yesterday.Day()
+	var year = yesterday.Year()
+	var month = (int)(yesterday.Month())
+	var day = yesterday.Day()
 	yester_date_str := toDateStr3(year, month, day)
 
-	for i := 0; i < remaining_hourly_backups; i++ {
+	for i := range remaining_hourly_backups {
 		prefix := yester_date_str + "_" + twoDigit(23-i)
 		hourlyFilters = append(hourlyFilters, prefix)
 	}
@@ -329,7 +329,7 @@ func getFiltersForDailys(start_date time.Time, existingDirs []string) ([]string,
 
 func getFiltersForDailysSimple(start_date time.Time, count int) []string {
 	var result = []string{}
-	for i := 0; i < count; i++ {
+	for range count {
 		// Format the time in the format YYYY-MM-DD
 		prefix := start_date.Format("2006-01-02")
 		result = append(result, prefix)
@@ -355,10 +355,10 @@ func getFiltersForMonthlys(current time.Time, count int) []string {
 	var result = []string{}
 	// don't use AddDate(0, -1, 0) as this function does not work as expected when we're on a March, 29th in a non-leap-year, e.g.
 	// use simpler and more robust approach, as from now on we don't need (leap-) days arithmetics anyhow
-	var year int = current.Year()
-	var month int = (int)(current.Month())
+	var year = current.Year()
+	var month = (int)(current.Month())
 
-	for i := 0; i < count; i++ {
+	for range count {
 		// Format the time in the format YYYY-MM
 		result = append(result, toDateStr(year, month))
 		prevMonth(&year, &month)

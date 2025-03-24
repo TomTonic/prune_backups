@@ -1,9 +1,10 @@
-issues:
-  # Which dirs to exclude: issues from them won't be reported.
-  # Can use regexp here: `generated.*`, regexp is applied on full path,
-  # including the path prefix if one is set.
-  # Default dirs are skipped independently of this option's value (see exclude-dirs-use-default).
-  # "/" will be replaced by current OS file path separator to properly work on Windows.
-  # Default: []
-  exclude-dirs:
-    - var_name_gen # test data generator
+version: "2"
+linters:
+  # Defines a set of rules to ignore issues.
+  # It does not skip the analysis, and so does not ignore "typecheck" errors.
+  exclusions:
+    # Which file paths to exclude: they will be analyzed, but issues from them won't be reported.
+    # "/" will be replaced by the current OS file path separator to properly work on Windows.
+    # Default: []
+    paths:
+      - var_name_gen/
