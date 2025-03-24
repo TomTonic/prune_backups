@@ -37,7 +37,9 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("error calling os.Open (%s)", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 	fd_ptrtype := f.Fd()
 	fd := int(fd_ptrtype) // this cast seems to work currently
 	// end alternative code
