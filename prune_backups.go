@@ -218,9 +218,9 @@ func getFiltersForYesterday(current_time time.Time, remaining_hourly_backups int
 
 	yesterday := current_time.Add(-24 * time.Hour)
 
-	var year int = yesterday.Year()
-	var month int = (int)(yesterday.Month())
-	var day int = yesterday.Day()
+	var year = yesterday.Year()
+	var month = (int)(yesterday.Month())
+	var day = yesterday.Day()
 	yester_date_str := toDateStr3(year, month, day)
 
 	for i := 0; i < remaining_hourly_backups; i++ {

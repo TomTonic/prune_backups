@@ -53,7 +53,10 @@ func TestOpenFileWithRetry(t *testing.T) {
 				t.Errorf("unexpected error for file %s: %v", test.filename, err)
 			}
 			if file != nil {
-				file.Close()
+				err2 := file.Close()
+				if err2 != nil {
+					t.Errorf("unexpected error for file %s: %v", test.filename, err2)
+				}
 			}
 		}
 	}
@@ -183,7 +186,9 @@ func Test_du2(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error creating temporary directory: ", err)
 	}
-	defer os.RemoveAll(dir) // clean up
+	defer func() {
+		_ = os.RemoveAll(dir) // clean up
+	}()
 
 	fname1 := filepath.Join(dir, "testfile1")
 	lname1 := filepath.Join(dir, "link1_to_testfile1")
@@ -327,7 +332,9 @@ func createTestfile(name string, size int) (err error) {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	fileSize := size // size in bytes
 	dummyData := make([]byte, fileSize)
