@@ -17,9 +17,14 @@ import (
 type CLI struct {
 	Version VersionCmd `cmd:"" help:"Show version/build information and exit."`
 	From    PruneCmd   `cmd:"" help:"Prune subdirectories from <dir> and move them to a 'to_delete' subdirectory (default, will be created automatically in <dir>) or --to a given location."`
+	Stats   StatsCmd   `cmd:"" help:"Show total size of linked and unlinked files in a given directory."`
 }
 
 type VersionCmd struct{}
+
+type StatsCmd struct {
+	Dir string `arg:"" help:"REQUIRED. The name of the directory for searching and aggregating file types and sizes." required:"true"`
+}
 
 type PruneCmd struct {
 	To        string `help:"OPTIONAL. The name of the directory where the pruned directories will be moved." default:"to_delete" short:"t"`
@@ -42,6 +47,14 @@ func (p *PruneCmd) Run(cli *CLI) error {
 
 	err := pruneDirectory(p.Dir, now, p.To, p.Verbosity, p.Stats)
 	return err
+}
+
+func (p *StatsCmd) Run(cli *CLI) error {
+	if !Stats_SupportedOS {
+		return errors.New("stats command not supported for your OS")
+	}
+	showStatsOf(p.Dir)
+	return nil
 }
 
 func main() {
@@ -136,7 +149,7 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 
 func showStatsOf(delPath string) {
 	info := du(delPath)
-	fmt.Printf("The directory %v now contains:\n", delPath)
+	fmt.Printf("The directory %v contains:\n", delPath)
 	printNiceNumbr(" - unlinked files            ", uint64(info.number_of_unlinked_files))
 	printNiceBytes(" - bytes in unlinked files   ", info.size_of_unlinked_files)
 	printNiceNumbr(" - hard-linked files         ", uint64(info.number_of_linked_files))
