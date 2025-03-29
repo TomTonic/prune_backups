@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"math/rand/v2"
@@ -36,27 +37,27 @@ var (
 	Stats_SupportedOS = runtime.GOOS == "linux" || runtime.GOOS == "windows"
 )
 
-func du(dir_name_or_file_name string) Infoblock {
+func du(dir_name_or_file_name string) (Infoblock, error) {
 	result := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
 	if ok, err := isDirectory(dir_name_or_file_name); ok {
 		if err != nil {
-			fmt.Printf("Error identifying %v: %v\n", dir_name_or_file_name, err)
-			return result.ib
+			errorMessage := fmt.Sprintf("Error identifying %v: %v\n", dir_name_or_file_name, err)
+			return result.ib, errors.New(errorMessage)
 		}
 		err = duInternalDirectory(dir_name_or_file_name, &result)
 		if err != nil {
-			fmt.Printf("Error reading directory %v: %v\n", dir_name_or_file_name, err)
-			return result.ib
+			errorMessage := fmt.Sprintf("Error reading directory %v: %v\n", dir_name_or_file_name, err)
+			return result.ib, errors.New(errorMessage)
 		}
 	} else {
 		err = duInternalFile(dir_name_or_file_name, &result)
 		if err != nil {
-			fmt.Printf("Error reading file %v: %v\n", dir_name_or_file_name, err)
-			return result.ib
+			errorMessage := fmt.Sprintf("Error reading file %v: %v\n", dir_name_or_file_name, err)
+			return result.ib, errors.New(errorMessage)
 		}
 	}
 	//fmt.Printf("total size of unlinked files: %v bytes; total size of linked files: %v bytes", size_of_unlinked_files, size_of_linked_files)
-	return result.ib
+	return result.ib, nil
 }
 
 func isDirectory(path string) (bool, error) {

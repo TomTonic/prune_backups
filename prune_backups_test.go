@@ -72,6 +72,30 @@ func captureOutput(f func()) string {
 	return buf.String()
 }
 
+func TestCLI_StatsCommand(t *testing.T) {
+	cli := CLI{}
+	parser := kong.Must(&cli,
+		kong.Name("prune_backups"),
+	)
+
+	args := []string{"stats", "ghjaiersughydfiasptohgyhjash"}
+	ctx, err := parser.Parse(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedOutput := "Error reading file ghjaiersughydfiasptohgyhjash: "
+
+	err = ctx.Run(&cli)
+	if err != nil {
+		if !strings.HasPrefix(err.Error(), expectedOutput) {
+			t.Fatalf("expected %q, got %q", expectedOutput, err.Error())
+		}
+	} else {
+		t.Fatalf("expected error")
+	}
+}
+
 func TestCLI_PruneCommand(t *testing.T) {
 	cli := CLI{}
 	parser := kong.Must(&cli,
@@ -1034,7 +1058,10 @@ func TestShowStatusOf(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	showStatsOf("./testdata/")
+	err := showStatsOf("./testdata/")
+	if err != nil {
+		t.Errorf("Expected no error but got %v", err)
+	}
 
 	// Close the writer and restore the original stdout
 	closerror := w.Close()
@@ -1045,19 +1072,20 @@ func TestShowStatusOf(t *testing.T) {
 
 	// Read the captured output
 	var buf bytes.Buffer
-	_, err := buf.ReadFrom(r)
+	_, err = buf.ReadFrom(r)
 	if err != nil {
 		t.Errorf("Error reading back from stdout: %v", err)
 	}
 	capturedOutput := buf.String()
 
 	// Check if the output is as expected
-	expectedOutput := "The directory ./testdata/ now contains:\n - unlinked files             : 4\n - bytes in unlinked files    : 20 Bytes\n - hard-linked files          : 0\n - bytes in hard-linked files : 0 Bytes\nUncounted special files:\n - directories                : 5\n - append-only-flagged files  : 0\n - exclusive-flagged files    : 0\n - temporary-flagged files    : 0\n - symlinks                   : 0\n - device nodes               : 0\n - named pipes                : 0\n - sockets                    : 0\n"
+	expectedOutput := "The directory ./testdata/ contains:\n - unlinked files             : 4\n - bytes in unlinked files    : 20 Bytes\n - hard-linked files          : 0\n - bytes in hard-linked files : 0 Bytes\nUncounted special files:\n - directories                : 5\n - append-only-flagged files  : 0\n - exclusive-flagged files    : 0\n - temporary-flagged files    : 0\n - symlinks                   : 0\n - device nodes               : 0\n - named pipes                : 0\n - sockets                    : 0\n"
 
 	if !strings.HasPrefix(capturedOutput, expectedOutput) {
 		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
 	}
 }
+
 func Test_pruneDirectory(t *testing.T) {
 	t.Run("Test_pruneDirectory_ErrorCreatingDirectory", func(t *testing.T) {
 		if runtime.GOOS == "windows" {

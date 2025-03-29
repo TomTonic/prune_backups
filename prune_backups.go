@@ -17,9 +17,14 @@ import (
 type CLI struct {
 	Version VersionCmd `cmd:"" help:"Show version/build information and exit."`
 	From    PruneCmd   `cmd:"" help:"Prune subdirectories from <dir> and move them to a 'to_delete' subdirectory (default, will be created automatically in <dir>) or --to a given location."`
+	Stats   StatsCmd   `cmd:"" help:"Show total size of linked and unlinked files in a given directory."`
 }
 
 type VersionCmd struct{}
+
+type StatsCmd struct {
+	Dir string `arg:"" help:"REQUIRED. The name of the directory for searching and aggregating file types and sizes." required:"true"`
+}
 
 type PruneCmd struct {
 	To        string `help:"OPTIONAL. The name of the directory where the pruned directories will be moved." default:"to_delete" short:"t"`
@@ -41,6 +46,14 @@ func (p *PruneCmd) Run(cli *CLI) error {
 	now := time.Now()
 
 	err := pruneDirectory(p.Dir, now, p.To, p.Verbosity, p.Stats)
+	return err
+}
+
+func (p *StatsCmd) Run(cli *CLI) error {
+	if !Stats_SupportedOS {
+		return errors.New("stats command not supported for your OS")
+	}
+	err := showStatsOf(p.Dir)
 	return err
 }
 
@@ -129,14 +142,17 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		fmt.Println("I moved", successful_move_counter, "directories to", delPath)
 	}
 	if showStats {
-		showStatsOf(delPath)
+		return showStatsOf(delPath)
 	}
 	return nil
 }
 
-func showStatsOf(delPath string) {
-	info := du(delPath)
-	fmt.Printf("The directory %v now contains:\n", delPath)
+func showStatsOf(delPath string) error {
+	info, err := du(delPath)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("The directory %v contains:\n", delPath)
 	printNiceNumbr(" - unlinked files            ", uint64(info.number_of_unlinked_files))
 	printNiceBytes(" - bytes in unlinked files   ", info.size_of_unlinked_files)
 	printNiceNumbr(" - hard-linked files         ", uint64(info.number_of_linked_files))
@@ -150,6 +166,7 @@ func showStatsOf(delPath string) {
 	printNiceNumbr(" - device nodes              ", uint64(info.nr_dev))
 	printNiceNumbr(" - named pipes               ", uint64(info.nr_pipe))
 	printNiceNumbr(" - sockets                   ", uint64(info.nr_sock))
+	return nil
 }
 
 func printNiceNumbr(prefix string, val uint64) {
