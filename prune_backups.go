@@ -53,8 +53,8 @@ func (p *StatsCmd) Run(cli *CLI) error {
 	if !Stats_SupportedOS {
 		return errors.New("stats command not supported for your OS")
 	}
-	showStatsOf(p.Dir)
-	return nil
+	err := showStatsOf(p.Dir)
+	return err
 }
 
 func main() {
@@ -142,13 +142,16 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		fmt.Println("I moved", successful_move_counter, "directories to", delPath)
 	}
 	if showStats {
-		showStatsOf(delPath)
+		return showStatsOf(delPath)
 	}
 	return nil
 }
 
-func showStatsOf(delPath string) {
-	info := du(delPath)
+func showStatsOf(delPath string) error {
+	info, err := du(delPath)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("The directory %v contains:\n", delPath)
 	printNiceNumbr(" - unlinked files            ", uint64(info.number_of_unlinked_files))
 	printNiceBytes(" - bytes in unlinked files   ", info.size_of_unlinked_files)
@@ -163,6 +166,7 @@ func showStatsOf(delPath string) {
 	printNiceNumbr(" - device nodes              ", uint64(info.nr_dev))
 	printNiceNumbr(" - named pipes               ", uint64(info.nr_pipe))
 	printNiceNumbr(" - sockets                   ", uint64(info.nr_sock))
+	return nil
 }
 
 func printNiceNumbr(prefix string, val uint64) {

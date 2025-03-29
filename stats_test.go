@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -116,34 +115,16 @@ func TestGetSizeAndLinkCount(t *testing.T) {
 }
 
 func Test_du0(t *testing.T) {
-	// Save the original stdout
-	originalStdout := os.Stdout
-
-	// Create a pipe to capture the output
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	_ = du("nonexistingfileordirectoryname5648623485762456")
-
-	// Close the writer and restore the original stdout
-	closerror := w.Close()
-	if closerror != nil {
-		t.Errorf("Error closing writer: %v", closerror)
-	}
-	os.Stdout = originalStdout
-
-	// Read the captured output
-	var buf bytes.Buffer
-	_, err := buf.ReadFrom(r)
-	if err != nil {
-		t.Errorf("Error reading back from stdout: %v", err)
-	}
-	capturedOutput := buf.String()
-
-	// Check if the output is as expected
 	expectedOutput := "Error reading file nonexistingfileordirectoryname5648623485762456: error calling os.Open ("
-	if !strings.HasPrefix(capturedOutput, expectedOutput) {
-		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
+
+	_, err := du("nonexistingfileordirectoryname5648623485762456")
+
+	if err != nil {
+		if !strings.HasPrefix(err.Error(), expectedOutput) {
+			t.Fatalf("expected %q, got %q", expectedOutput, err.Error())
+		}
+	} else {
+		t.Fatalf("expected error")
 	}
 }
 
@@ -170,7 +151,10 @@ func Test_du1(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := du(tt.dir)
+			got, err := du(tt.dir)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 			//got_number_of_unlinked_files, got_size_of_unlinked_files, got_number_of_linked_files, got_size_of_linked_files, got_number_of_subdirs := du(tt.dir)
 			if got.number_of_unlinked_files != tt.number_of_unlinked_files || got.size_of_unlinked_files != tt.size_of_unlinked_files || got.number_of_linked_files != tt.number_of_linked_files || got.size_of_linked_files != tt.size_of_linked_files || got.number_of_subdirs != tt.number_of_subdirs {
 				t.Errorf("du got: #uf:%v/%v, size uf:%v/%v, #lf:%v/%v, size lf:%v/%v, dirs:%v/%v",
@@ -212,7 +196,10 @@ func Test_du2(t *testing.T) {
 	size_of_linked_files := uint64(8888)
 	number_of_subdirs := 1
 
-	got := du(dir)
+	got, err := du(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	//got_number_of_unlinked_files, got_size_of_unlinked_files, got_number_of_linked_files, got_size_of_linked_files, got_number_of_subdirs := du(dir)
 	if got.number_of_unlinked_files != number_of_unlinked_files || got.size_of_unlinked_files != size_of_unlinked_files || got.number_of_linked_files != number_of_linked_files || got.size_of_linked_files != size_of_linked_files || got.number_of_subdirs != number_of_subdirs {
 		t.Errorf("du got: #uf:%v/%v, size uf:%v/%v, #lf:%v/%v, size lf:%v/%v, dirs:%v/%v",
@@ -258,7 +245,10 @@ func Test_du3(t *testing.T) {
 	size_of_linked_files := uint64(8888)
 	number_of_subdirs := (1)
 
-	got := du(dir)
+	got, err := du(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	//got_number_of_unlinked_files, got_size_of_unlinked_files, got_number_of_linked_files, got_size_of_linked_files, got_number_of_subdirs := du(dir)
 	if got.number_of_unlinked_files != number_of_unlinked_files || got.size_of_unlinked_files != size_of_unlinked_files || got.number_of_linked_files != number_of_linked_files || got.size_of_linked_files != size_of_linked_files || got.number_of_subdirs != number_of_subdirs {
 		t.Errorf("du got: #uf:%v/%v, size uf:%v/%v, #lf:%v/%v, size lf:%v/%v, dirs:%v/%v",
@@ -322,7 +312,10 @@ func Test_du4(t *testing.T) {
 	size_of_linked_files := uint64(37 + 37 + 41 + 41 + 41)
 	number_of_subdirs := (1)
 
-	got := du(dir)
+	got, err := du(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	//got_number_of_unlinked_files, got_size_of_unlinked_files, got_number_of_linked_files, got_size_of_linked_files, got_number_of_subdirs := du(dir)
 	if got.number_of_unlinked_files != number_of_unlinked_files || got.size_of_unlinked_files != size_of_unlinked_files || got.number_of_linked_files != number_of_linked_files || got.size_of_linked_files != size_of_linked_files || got.number_of_subdirs != number_of_subdirs {
 		t.Errorf("du got: #uf:%v/%v, size uf:%v/%v, #lf:%v/%v, size lf:%v/%v, dirs:%v/%v",

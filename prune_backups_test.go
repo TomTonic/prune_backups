@@ -84,7 +84,7 @@ func TestCLI_StatsCommand(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	expectedOutput := "Could not read pruning directory: open ghjaiersughydfiasptohgyhjash: "
+	expectedOutput := "Error reading file ghjaiersughydfiasptohgyhjash: "
 
 	err = ctx.Run(&cli)
 	if err != nil {
