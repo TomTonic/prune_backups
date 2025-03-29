@@ -1058,7 +1058,10 @@ func TestShowStatusOf(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	showStatsOf("./testdata/")
+	err := showStatsOf("./testdata/")
+	if err != nil {
+		t.Errorf("Expected no error but got %v", err)
+	}
 
 	// Close the writer and restore the original stdout
 	closerror := w.Close()
@@ -1069,7 +1072,7 @@ func TestShowStatusOf(t *testing.T) {
 
 	// Read the captured output
 	var buf bytes.Buffer
-	_, err := buf.ReadFrom(r)
+	_, err = buf.ReadFrom(r)
 	if err != nil {
 		t.Errorf("Error reading back from stdout: %v", err)
 	}
