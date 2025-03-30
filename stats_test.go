@@ -331,6 +331,104 @@ func Test_du4(t *testing.T) {
 	}
 }
 
+func Test_du5(t *testing.T) {
+	t.Run("AccessDenied", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+			// When you set a directory to 0444 permissions in Windows, it means that the directory
+			// is readable by everyone but not writable or executable by anyone. However, Windows
+			// allows the creation of child directories even with these restrictive permissions because
+			// the permissions for new directories are determined by the permissions of the parent
+			// directory and the user's permissions
+		}
+
+		// Setup
+		testDir := t.TempDir()
+		noreadDir := filepath.Join(testDir, "noread")
+		err := os.Mkdir(noreadDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create noread directory: %v", err)
+		}
+
+		noreadDirSub1 := filepath.Join(noreadDir, "sub1")
+		err = os.Mkdir(noreadDirSub1, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create noreadDirSub1 directory: %v", err)
+		}
+
+		noreadDirSub2 := filepath.Join(noreadDir, "sub2")
+		err = os.Mkdir(noreadDirSub2, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create noreadDirSub2 directory: %v", err)
+		}
+
+		noreadDirTxt := filepath.Join(noreadDir, "test.txt")
+		err = createTestfile(noreadDirTxt, 37)
+		if err != nil {
+			t.Fatal("Error creating noreadDirTxt: ", err)
+		}
+
+		noreadDirSub1Txt := filepath.Join(noreadDirSub1, "testSub.txt")
+		err = createTestfile(noreadDirSub1Txt, 41)
+		if err != nil {
+			t.Fatal("Error creating noreadDirSub1Txt: ", err)
+		}
+
+		err = os.Chmod(noreadDirSub1, 0000)
+		if err != nil {
+			t.Fatalf("Failed to set noreadDirSub1 permissions: %v", err)
+		}
+
+		err = os.Chmod(noreadDirTxt, 0000)
+		if err != nil {
+			t.Fatalf("Failed to set noreadDirTxt permissions: %v", err)
+		}
+
+		number_of_unlinked_files := (0)
+		size_of_unlinked_files := uint64(0)
+		number_of_linked_files := (0)
+		size_of_linked_files := uint64(0)
+		number_of_subdirs := (3)
+
+		got, err := du(testDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.number_of_unlinked_files != number_of_unlinked_files || got.size_of_unlinked_files != size_of_unlinked_files || got.number_of_linked_files != number_of_linked_files || got.size_of_linked_files != size_of_linked_files || got.number_of_subdirs != number_of_subdirs {
+			t.Errorf("du got: #uf:%v/%v, size uf:%v/%v, #lf:%v/%v, size lf:%v/%v, dirs:%v/%v",
+				got.number_of_unlinked_files, number_of_unlinked_files,
+				got.size_of_unlinked_files, size_of_unlinked_files,
+				got.number_of_linked_files, number_of_linked_files,
+				got.size_of_linked_files, size_of_linked_files,
+				got.number_of_subdirs, number_of_subdirs)
+		}
+
+		number_of_permission_errors_files := 1
+		number_of_permission_errors_dirs := 1
+		number_of_other_errors_files := 0
+		number_of_other_errors_dirs := 0
+
+		if got.number_of_permission_errors_files != number_of_permission_errors_files || got.number_of_permission_errors_dirs != number_of_permission_errors_dirs || got.number_of_other_errors_files != number_of_other_errors_files || got.number_of_other_errors_dirs != number_of_other_errors_dirs {
+			t.Errorf("du got: pef:%v/%v, ped:%v/%v, oef:%v/%v, oed:%v/%v",
+				got.number_of_permission_errors_files, number_of_permission_errors_files,
+				got.number_of_permission_errors_dirs, number_of_permission_errors_dirs,
+				got.number_of_other_errors_files, number_of_other_errors_files,
+				got.number_of_other_errors_dirs, number_of_other_errors_dirs)
+		}
+
+		err = os.Chmod(noreadDirSub1, 0755)
+		if err != nil {
+			t.Fatalf("Failed to set noreadDirSub1 permissions: %v", err)
+		}
+
+		err = os.Chmod(noreadDirTxt, 0755)
+		if err != nil {
+			t.Fatalf("Failed to set noreadDirTxt permissions: %v", err)
+		}
+
+	})
+}
+
 func createTestfile(name string, size int) (err error) {
 	file, err := os.Create(name)
 	if err != nil {
