@@ -84,7 +84,10 @@ func TestCLI_StatsCommand(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	expectedOutput := "Error reading file ghjaiersughydfiasptohgyhjash: "
+	expectedOutput := "open ghjaiersughydfiasptohgyhjash: no such file or directory"
+	if runtime.GOOS == "windows" {
+		expectedOutput = "open ghjaiersughydfiasptohgyhjash: The system cannot find the file specified."
+	}
 
 	err = ctx.Run(&cli)
 	if err != nil {

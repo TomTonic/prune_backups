@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -115,7 +116,10 @@ func TestGetSizeAndLinkCount(t *testing.T) {
 }
 
 func Test_du0(t *testing.T) {
-	expectedOutput := "Error reading file nonexistingfileordirectoryname5648623485762456: error calling os.Open ("
+	expectedOutput := "open nonexistingfileordirectoryname5648623485762456: no such file or directory"
+	if runtime.GOOS == "windows" {
+		expectedOutput = "open nonexistingfileordirectoryname5648623485762456: The system cannot find the file specified."
+	}
 
 	_, err := du("nonexistingfileordirectoryname5648623485762456")
 
