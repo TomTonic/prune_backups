@@ -335,11 +335,6 @@ func Test_du5(t *testing.T) {
 	t.Run("AccessDenied", func(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			t.Skip("This test does not work on Windows")
-			// When you set a directory to 0444 permissions in Windows, it means that the directory
-			// is readable by everyone but not writable or executable by anyone. However, Windows
-			// allows the creation of child directories even with these restrictive permissions because
-			// the permissions for new directories are determined by the permissions of the parent
-			// directory and the user's permissions
 		}
 
 		// Setup
