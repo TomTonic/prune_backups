@@ -149,7 +149,7 @@ func Test_du1(t *testing.T) {
 			size_of_unlinked_files:   20,
 			number_of_linked_files:   0,
 			size_of_linked_files:     0,
-			number_of_subdirs:        4,
+			number_of_subdirs:        3,
 		},
 	}
 
@@ -198,7 +198,7 @@ func Test_du2(t *testing.T) {
 	size_of_unlinked_files := uint64(0)
 	number_of_linked_files := 2
 	size_of_linked_files := uint64(8888)
-	number_of_subdirs := 1
+	number_of_subdirs := 0
 
 	got, err := du(dir)
 	if err != nil {
@@ -247,7 +247,7 @@ func Test_du3(t *testing.T) {
 	size_of_unlinked_files := uint64(1111)
 	number_of_linked_files := (2)
 	size_of_linked_files := uint64(8888)
-	number_of_subdirs := (1)
+	number_of_subdirs := (0)
 
 	got, err := du(dir)
 	if err != nil {
@@ -314,7 +314,7 @@ func Test_du4(t *testing.T) {
 	size_of_unlinked_files := uint64(43)
 	number_of_linked_files := (5)
 	size_of_linked_files := uint64(37 + 37 + 41 + 41 + 41)
-	number_of_subdirs := (1)
+	number_of_subdirs := (0)
 
 	got, err := du(dir)
 	if err != nil {
