@@ -210,7 +210,7 @@ func checkBit(mode fs.FileMode, cmp fs.FileMode, if_set string, if_not_set strin
 */
 
 func readDirWithRetry(directoryname string, retries, maxwait_seconds int) ([]fs.DirEntry, error) {
-	for i := 0; i < retries; i++ {
+	for range retries {
 		direntries, err := os.ReadDir(directoryname)
 		if err != nil {
 			pathErr, ok := err.(*os.PathError)
@@ -230,7 +230,7 @@ func readDirWithRetry(directoryname string, retries, maxwait_seconds int) ([]fs.
 }
 
 func openFileWithRetry(filename string, retries, maxwait_seconds int) (*os.File, error) {
-	for i := 0; i < retries; i++ {
+	for range retries {
 		file, err := os.Open(filename)
 		if err != nil {
 			pathErr, ok := err.(*os.PathError)
