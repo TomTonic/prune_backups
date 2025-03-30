@@ -58,7 +58,6 @@ func du(dir_name_or_file_name string) (Infoblock, error) {
 	} else {
 		duInternalFile(dir_name_or_file_name, &result)
 	}
-	//fmt.Printf("total size of unlinked files: %v bytes; total size of linked files: %v bytes", size_of_unlinked_files, size_of_linked_files)
 	return result.ib, nil
 }
 
@@ -78,6 +77,7 @@ func duInternalFile(fileName string, info *infoblock_internal) {
 		} else {
 			(*info).ib.number_of_other_errors_files += 1
 		}
+		return
 	}
 	if f_links == 1 {
 		(*info).ib.number_of_unlinked_files += 1
@@ -90,7 +90,6 @@ func duInternalFile(fileName string, info *infoblock_internal) {
 
 func duInternalDirectory(directoryName string, globalinfo *infoblock_internal) {
 	localinfo := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
-	localinfo.ib.number_of_subdirs += 1  // this directory
 	defer addAll(globalinfo, &localinfo) // this is synchronized
 
 	files, err := readDirWithRetry(directoryName, 1000000, 2)
@@ -114,6 +113,8 @@ func duInternalDirectory(directoryName string, globalinfo *infoblock_internal) {
 			countAccordingType(file.Type(), &localinfo)
 		}
 	}
+
+	localinfo.ib.number_of_subdirs += len(subdirs)
 
 	// now descend into the directories
 	var wg sync.WaitGroup
@@ -178,46 +179,6 @@ func countAccordingType(mode fs.FileMode, info *infoblock_internal) {
 	}
 }
 
-/*
-func typeToString(mode fs.FileMode) string {
-	switch mode {
-	case fs.ModeDir:
-		return "directory"
-	case fs.ModeAppend:
-		return "append-only file"
-	case fs.ModeExclusive:
-		return "exclusive file"
-	case fs.ModeTemporary:
-		return "temporary file"
-	case fs.ModeSymlink:
-		return "symlink"
-	case fs.ModeDevice:
-		return "device"
-	case fs.ModeNamedPipe:
-		return "named pipe"
-	case fs.ModeSocket:
-		return "socket"
-	default:
-		result := checkBit(mode, fs.ModeDir, "DIR|", "dir|")
-		result += checkBit(mode, fs.ModeAppend, "APND|", "apnd|")
-		result += checkBit(mode, fs.ModeExclusive, "EXCL|", "excl|")
-		result += checkBit(mode, fs.ModeTemporary, "TMP|", "tmp|")
-		result += checkBit(mode, fs.ModeSymlink, "SYM|", "sym|")
-		result += checkBit(mode, fs.ModeDevice, "DEV|", "dev|")
-		result += checkBit(mode, fs.ModeNamedPipe, "PIPE|", "pipe|")
-		result += checkBit(mode, fs.ModeSocket, "SOCK", "sock")
-		return result
-	}
-}
-
-func checkBit(mode fs.FileMode, cmp fs.FileMode, if_set string, if_not_set string) string {
-	if mode&cmp > 1 {
-		return if_set
-	}
-	return if_not_set
-}
-*/
-
 func readDirWithRetry(directoryname string, retries, maxwait_seconds int) ([]fs.DirEntry, error) {
 	for range retries {
 		direntries, err := os.ReadDir(directoryname)
@@ -229,7 +190,7 @@ func readDirWithRetry(directoryname string, retries, maxwait_seconds int) ([]fs.
 			if pathErr.Err.Error() == "too many open files" {
 				// Wait a random time before retrying
 				rnd := rand.IntN(maxwait_seconds * 1000)
-				time.Sleep(time.Duration(200+rnd) * time.Millisecond) // wait at leas 200ms
+				time.Sleep(time.Duration(200+rnd) * time.Millisecond) // wait at least 200ms
 				continue
 			}
 			if pathErr.Err.Error() == "permission denied" {
@@ -253,7 +214,7 @@ func openFileWithRetry(filename string, retries, maxwait_seconds int) (*os.File,
 			if pathErr.Err.Error() == "too many open files" {
 				// Wait a random time before retrying
 				rnd := rand.IntN(maxwait_seconds * 1000)
-				time.Sleep(time.Duration(200+rnd) * time.Millisecond) // wait at leas 200ms
+				time.Sleep(time.Duration(200+rnd) * time.Millisecond) // wait at least 200ms
 				continue
 			}
 			if pathErr.Err.Error() == "permission denied" {

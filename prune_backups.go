@@ -152,12 +152,11 @@ func showStatsOf(delPath string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("The directory %v contains:\n", delPath)
+	fmt.Printf("Content of %v:\n", delPath)
 	printNiceNumbr(" - unlinked files            ", uint64(info.number_of_unlinked_files))
 	printNiceBytes(" - bytes in unlinked files   ", info.size_of_unlinked_files)
 	printNiceNumbr(" - hard-linked files         ", uint64(info.number_of_linked_files))
 	printNiceBytes(" - bytes in hard-linked files", info.size_of_linked_files)
-	fmt.Print("Uncounted special files:\n")
 	printNiceNumbr(" - directories               ", uint64(info.number_of_subdirs))
 	printNiceNumbr(" - append-only-flagged files ", uint64(info.nr_apnd))
 	printNiceNumbr(" - exclusive-flagged files   ", uint64(info.nr_excl))
@@ -166,6 +165,15 @@ func showStatsOf(delPath string) error {
 	printNiceNumbr(" - device nodes              ", uint64(info.nr_dev))
 	printNiceNumbr(" - named pipes               ", uint64(info.nr_pipe))
 	printNiceNumbr(" - sockets                   ", uint64(info.nr_sock))
+	if info.number_of_permission_errors_files+info.number_of_permission_errors_dirs+info.number_of_other_errors_files+info.number_of_other_errors_dirs == 0 {
+		fmt.Println("No I/O errors occurred scanning the directory tree.")
+	} else {
+		fmt.Printf("%v errors occurred scanning the directory tree:\n", info.number_of_permission_errors_files+info.number_of_permission_errors_dirs+info.number_of_other_errors_files+info.number_of_other_errors_dirs)
+		printNiceNumbr(" - permission denial accessing directories ", uint64(info.number_of_permission_errors_dirs))
+		printNiceNumbr(" - permission denial accessing files       ", uint64(info.number_of_permission_errors_files))
+		printNiceNumbr(" - other errors accessing directories      ", uint64(info.number_of_other_errors_dirs))
+		printNiceNumbr(" - other errors accessing files            ", uint64(info.number_of_other_errors_files))
+	}
 	return nil
 }
 

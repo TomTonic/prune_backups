@@ -1082,7 +1082,7 @@ func TestShowStatusOf(t *testing.T) {
 	capturedOutput := buf.String()
 
 	// Check if the output is as expected
-	expectedOutput := "The directory ./testdata/ contains:\n - unlinked files             : 4\n - bytes in unlinked files    : 20 Bytes\n - hard-linked files          : 0\n - bytes in hard-linked files : 0 Bytes\nUncounted special files:\n - directories                : 5\n - append-only-flagged files  : 0\n - exclusive-flagged files    : 0\n - temporary-flagged files    : 0\n - symlinks                   : 0\n - device nodes               : 0\n - named pipes                : 0\n - sockets                    : 0\n"
+	expectedOutput := "Content of ./testdata/:\n - unlinked files             : 4\n - bytes in unlinked files    : 20 Bytes\n - hard-linked files          : 0\n - bytes in hard-linked files : 0 Bytes\n - directories                : 4\n - append-only-flagged files  : 0\n - exclusive-flagged files    : 0\n - temporary-flagged files    : 0\n - symlinks                   : 0\n - device nodes               : 0\n - named pipes                : 0\n - sockets                    : 0\nNo I/O errors occurred scanning the directory tree.\n"
 
 	if !strings.HasPrefix(capturedOutput, expectedOutput) {
 		t.Errorf("Expected %q but got %q", expectedOutput, capturedOutput)
