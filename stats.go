@@ -118,15 +118,20 @@ func duInternalDirectory(directoryName string, globalinfo *infoblock_internal) {
 
 	// now descend into the directories
 	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, runtime.NumCPU()*500) // Limit the number of concurrent goroutines
+
 	for _, subdir := range subdirs {
-		// descend children in parallel
-		wg.Add(1) // Increment the WaitGroup counter.
-		go func() {
-			defer wg.Done() // Decrement the counter when the goroutine completes.
+		semaphore <- struct{}{} // Acquire a token before starting a goroutine
+		wg.Add(1)
+		go func(subdir string) {
+			defer func() { <-semaphore }() // Release the token when done
+			defer wg.Done()
 			duInternalDirectory(subdir, globalinfo)
-		}()
+		}(subdir)
 	}
+
 	wg.Wait() // Wait for all child directories to complete
+
 }
 
 func addAll(globalinfo, localinfo *infoblock_internal) {
