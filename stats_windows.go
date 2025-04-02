@@ -3,7 +3,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 
 	"golang.org/x/sys/windows"
 )
@@ -15,11 +17,17 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 
 	//file, err := os.Open(filename)
 	file, err := openFileWithRetry(filename, 1000000, 2)
-
+	defer func() {
+		if file != nil {
+			_ = file.Close()
+		}
+	}()
 	if err != nil {
-		return 0, 0, fmt.Errorf("error calling os.Open (%s)", err)
+		if errors.Is(err, fs.ErrPermission) {
+			return 0, 0, err
+		}
+		return 0, 0, fmt.Errorf("error opening file: %v", err)
 	}
-	defer file.Close()
 
 	handle := windows.Handle(file.Fd())
 

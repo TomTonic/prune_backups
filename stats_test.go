@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -115,7 +116,10 @@ func TestGetSizeAndLinkCount(t *testing.T) {
 }
 
 func Test_du0(t *testing.T) {
-	expectedOutput := "Error reading file nonexistingfileordirectoryname5648623485762456: error calling os.Open ("
+	expectedOutput := "open nonexistingfileordirectoryname5648623485762456: no such file or directory"
+	if runtime.GOOS == "windows" {
+		expectedOutput = "open nonexistingfileordirectoryname5648623485762456: The system cannot find the file specified."
+	}
 
 	_, err := du("nonexistingfileordirectoryname5648623485762456")
 
@@ -145,7 +149,7 @@ func Test_du1(t *testing.T) {
 			size_of_unlinked_files:   20,
 			number_of_linked_files:   0,
 			size_of_linked_files:     0,
-			number_of_subdirs:        4,
+			number_of_subdirs:        3,
 		},
 	}
 
@@ -194,7 +198,7 @@ func Test_du2(t *testing.T) {
 	size_of_unlinked_files := uint64(0)
 	number_of_linked_files := 2
 	size_of_linked_files := uint64(8888)
-	number_of_subdirs := 1
+	number_of_subdirs := 0
 
 	got, err := du(dir)
 	if err != nil {
@@ -243,7 +247,7 @@ func Test_du3(t *testing.T) {
 	size_of_unlinked_files := uint64(1111)
 	number_of_linked_files := (2)
 	size_of_linked_files := uint64(8888)
-	number_of_subdirs := (1)
+	number_of_subdirs := (0)
 
 	got, err := du(dir)
 	if err != nil {
@@ -310,7 +314,7 @@ func Test_du4(t *testing.T) {
 	size_of_unlinked_files := uint64(43)
 	number_of_linked_files := (5)
 	size_of_linked_files := uint64(37 + 37 + 41 + 41 + 41)
-	number_of_subdirs := (1)
+	number_of_subdirs := (0)
 
 	got, err := du(dir)
 	if err != nil {
@@ -325,6 +329,99 @@ func Test_du4(t *testing.T) {
 			got.size_of_linked_files, size_of_linked_files,
 			got.number_of_subdirs, number_of_subdirs)
 	}
+}
+
+func Test_du5(t *testing.T) {
+	t.Run("AccessDenied", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+		}
+
+		// Setup
+		testDir := t.TempDir()
+		noreadDir := filepath.Join(testDir, "noread")
+		err := os.Mkdir(noreadDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create noread directory: %v", err)
+		}
+
+		noreadDirSub1 := filepath.Join(noreadDir, "sub1")
+		err = os.Mkdir(noreadDirSub1, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create noreadDirSub1 directory: %v", err)
+		}
+
+		noreadDirSub2 := filepath.Join(noreadDir, "sub2")
+		err = os.Mkdir(noreadDirSub2, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create noreadDirSub2 directory: %v", err)
+		}
+
+		noreadDirTxt := filepath.Join(noreadDir, "test.txt")
+		err = createTestfile(noreadDirTxt, 37)
+		if err != nil {
+			t.Fatal("Error creating noreadDirTxt: ", err)
+		}
+
+		noreadDirSub1Txt := filepath.Join(noreadDirSub1, "testSub.txt")
+		err = createTestfile(noreadDirSub1Txt, 41)
+		if err != nil {
+			t.Fatal("Error creating noreadDirSub1Txt: ", err)
+		}
+
+		err = os.Chmod(noreadDirSub1, 0000)
+		if err != nil {
+			t.Fatalf("Failed to set noreadDirSub1 permissions: %v", err)
+		}
+
+		err = os.Chmod(noreadDirTxt, 0000)
+		if err != nil {
+			t.Fatalf("Failed to set noreadDirTxt permissions: %v", err)
+		}
+
+		number_of_unlinked_files := (0)
+		size_of_unlinked_files := uint64(0)
+		number_of_linked_files := (0)
+		size_of_linked_files := uint64(0)
+		number_of_subdirs := (3)
+
+		got, err := du(testDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.number_of_unlinked_files != number_of_unlinked_files || got.size_of_unlinked_files != size_of_unlinked_files || got.number_of_linked_files != number_of_linked_files || got.size_of_linked_files != size_of_linked_files || got.number_of_subdirs != number_of_subdirs {
+			t.Errorf("du got: #uf:%v/%v, size uf:%v/%v, #lf:%v/%v, size lf:%v/%v, dirs:%v/%v",
+				got.number_of_unlinked_files, number_of_unlinked_files,
+				got.size_of_unlinked_files, size_of_unlinked_files,
+				got.number_of_linked_files, number_of_linked_files,
+				got.size_of_linked_files, size_of_linked_files,
+				got.number_of_subdirs, number_of_subdirs)
+		}
+
+		number_of_permission_errors_files := 1
+		number_of_permission_errors_dirs := 1
+		number_of_other_errors_files := 0
+		number_of_other_errors_dirs := 0
+
+		if got.number_of_permission_errors_files != number_of_permission_errors_files || got.number_of_permission_errors_dirs != number_of_permission_errors_dirs || got.number_of_other_errors_files != number_of_other_errors_files || got.number_of_other_errors_dirs != number_of_other_errors_dirs {
+			t.Errorf("du got: pef:%v/%v, ped:%v/%v, oef:%v/%v, oed:%v/%v",
+				got.number_of_permission_errors_files, number_of_permission_errors_files,
+				got.number_of_permission_errors_dirs, number_of_permission_errors_dirs,
+				got.number_of_other_errors_files, number_of_other_errors_files,
+				got.number_of_other_errors_dirs, number_of_other_errors_dirs)
+		}
+
+		err = os.Chmod(noreadDirSub1, 0755)
+		if err != nil {
+			t.Fatalf("Failed to set noreadDirSub1 permissions: %v", err)
+		}
+
+		err = os.Chmod(noreadDirTxt, 0755)
+		if err != nil {
+			t.Fatalf("Failed to set noreadDirTxt permissions: %v", err)
+		}
+
+	})
 }
 
 func createTestfile(name string, size int) (err error) {

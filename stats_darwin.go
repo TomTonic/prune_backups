@@ -3,7 +3,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 
 	"golang.org/x/sys/unix"
 )
@@ -34,10 +36,18 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 
 	// alternative code
 	f, err := openFileWithRetry(filename, 1000000, 2)
+	defer func() {
+		if f != nil {
+			_ = f.Close()
+		}
+	}()
 	if err != nil {
-		return 0, 0, fmt.Errorf("error calling os.Open (%s)", err)
+		if errors.Is(err, fs.ErrPermission) {
+			return 0, 0, err
+		}
+		return 0, 0, fmt.Errorf("error opening file: %v", err)
 	}
-	defer f.Close()
+
 	fd_ptrtype := f.Fd()
 	fd := int(fd_ptrtype) // this cast seems to work currently
 	// end alternative code
