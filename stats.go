@@ -41,7 +41,7 @@ var (
 	Stats_SupportedOS = runtime.GOOS == "linux" || runtime.GOOS == "windows"
 )
 
-func du(dir_name_or_file_name string) (Infoblock, error) {
+func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 	result := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
 
 	_, err := os.Open(dir_name_or_file_name)

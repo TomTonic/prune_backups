@@ -148,7 +148,7 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 }
 
 func showStatsOf(delPath string) error {
-	info, err := du(delPath)
+	info, err := DiskUsage(delPath)
 	if err != nil {
 		return err
 	}
