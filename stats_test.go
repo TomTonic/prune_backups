@@ -121,7 +121,7 @@ func Test_du0(t *testing.T) {
 		expectedOutput = "open nonexistingfileordirectoryname5648623485762456: The system cannot find the file specified."
 	}
 
-	_, err := du("nonexistingfileordirectoryname5648623485762456")
+	_, err := DiskUsage("nonexistingfileordirectoryname5648623485762456")
 
 	if err != nil {
 		if !strings.HasPrefix(err.Error(), expectedOutput) {
@@ -155,7 +155,7 @@ func Test_du1(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := du(tt.dir)
+			got, err := DiskUsage(tt.dir)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -200,7 +200,7 @@ func Test_du2(t *testing.T) {
 	size_of_linked_files := uint64(8888)
 	number_of_subdirs := 0
 
-	got, err := du(dir)
+	got, err := DiskUsage(dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -249,7 +249,7 @@ func Test_du3(t *testing.T) {
 	size_of_linked_files := uint64(8888)
 	number_of_subdirs := (0)
 
-	got, err := du(dir)
+	got, err := DiskUsage(dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -316,7 +316,7 @@ func Test_du4(t *testing.T) {
 	size_of_linked_files := uint64(37 + 37 + 41 + 41 + 41)
 	number_of_subdirs := (0)
 
-	got, err := du(dir)
+	got, err := DiskUsage(dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -385,7 +385,7 @@ func Test_du5(t *testing.T) {
 		size_of_linked_files := uint64(0)
 		number_of_subdirs := (3)
 
-		got, err := du(testDir)
+		got, err := DiskUsage(testDir)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
