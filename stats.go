@@ -255,7 +255,7 @@ func (s *Semaphore) Acquire() {
 				break
 			}
 		}
-		time.Sleep(time.Millisecond * 5) // Prevent tight busy-wait loops
+		time.Sleep(time.Millisecond) // Prevent tight busy-wait loops
 	}
 }
 
@@ -269,6 +269,6 @@ func (s *Semaphore) Release() {
 				break
 			}
 		}
-		time.Sleep(time.Millisecond * 5) // Prevent tight busy-wait loops
+		time.Sleep(time.Millisecond) // Prevent tight busy-wait loops
 	}
 }
