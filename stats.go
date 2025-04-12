@@ -45,9 +45,9 @@ var (
 
 func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 	result := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
-	limit := (int32)(runtime.NumCPU()) * 2000
+	limit := (int64)(4000)
 	semaphore := NewSemaphore(limit)      // Limit the number of concurrent goroutines
-	debug.SetMaxThreads((int)(limit * 2)) // Increase the thread limit
+	debug.SetMaxThreads((int)(2 * limit)) // Ensure the thread limit is high enough
 
 	_, err := os.Open(dir_name_or_file_name)
 	if err != nil {
@@ -237,11 +237,11 @@ func openFileWithRetry(filename string, retries, maxwait_seconds int) (*os.File,
 }
 
 type Semaphore struct {
-	counter int32 // Number of currently acquired permits
-	limit   int32 // Maximum permits allowed
+	counter int64 // Number of currently acquired permits
+	limit   int64 // Maximum permits allowed
 }
 
-func NewSemaphore(limit int32) *Semaphore {
+func NewSemaphore(limit int64) *Semaphore {
 	return &Semaphore{
 		counter: 0,
 		limit:   limit,
@@ -251,9 +251,9 @@ func NewSemaphore(limit int32) *Semaphore {
 // Acquire a permit
 func (s *Semaphore) Acquire() {
 	for {
-		current := atomic.LoadInt32(&s.counter)
+		current := atomic.LoadInt64(&s.counter)
 		if current < s.limit {
-			if atomic.CompareAndSwapInt32(&s.counter, current, current+1) {
+			if atomic.CompareAndSwapInt64(&s.counter, current, current+1) {
 				// Successfully acquired a permit
 				break
 			}
@@ -265,9 +265,9 @@ func (s *Semaphore) Acquire() {
 // Release a permit
 func (s *Semaphore) Release() {
 	for {
-		current := atomic.LoadInt32(&s.counter)
+		current := atomic.LoadInt64(&s.counter)
 		if current > 0 {
-			if atomic.CompareAndSwapInt32(&s.counter, current, current-1) {
+			if atomic.CompareAndSwapInt64(&s.counter, current, current-1) {
 				// Successfully released a permit
 				break
 			}
