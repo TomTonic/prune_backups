@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -43,7 +44,7 @@ var (
 
 func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 	result := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
-	semaphore := make(chan struct{}, runtime.NumCPU()*500) // Limit the number of concurrent goroutines
+	semaphore := NewSemaphore((int32)(runtime.NumCPU()) * 500) // Limit the number of concurrent goroutines
 
 	_, err := os.Open(dir_name_or_file_name)
 	if err != nil {
@@ -55,7 +56,7 @@ func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 			errorMessage := fmt.Sprintf("Error identifying %v: %v\n", dir_name_or_file_name, err)
 			return result.ib, errors.New(errorMessage)
 		}
-		duInternalDirectory(dir_name_or_file_name, &result, &semaphore)
+		duInternalDirectory(dir_name_or_file_name, &result, semaphore)
 	} else {
 		duInternalFile(dir_name_or_file_name, &result)
 	}
@@ -89,7 +90,7 @@ func duInternalFile(fileName string, info *infoblock_internal) {
 	}
 }
 
-func duInternalDirectory(directoryName string, globalinfo *infoblock_internal, semaphore *chan struct{}) {
+func duInternalDirectory(directoryName string, globalinfo *infoblock_internal, semaphore *Semaphore) {
 	localinfo := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
 	defer addAll(globalinfo, &localinfo) // this is synchronized
 
@@ -121,10 +122,10 @@ func duInternalDirectory(directoryName string, globalinfo *infoblock_internal, s
 	var wg sync.WaitGroup
 
 	for _, subdir := range subdirs {
-		*semaphore <- struct{}{} // Acquire a token before starting a goroutine
+		semaphore.Acquire()
 		wg.Add(1)
 		go func(subdir string) {
-			defer func() { <-*semaphore }() // Release the token when done
+			defer func() { semaphore.Release() }() // Release the token when done
 			defer wg.Done()
 			duInternalDirectory(subdir, globalinfo, semaphore)
 		}(subdir)
@@ -230,4 +231,44 @@ func openFileWithRetry(filename string, retries, maxwait_seconds int) (*os.File,
 		return file, nil
 	}
 	return nil, fmt.Errorf("failed to open file after %v retries: %s", retries, filename)
+}
+
+type Semaphore struct {
+	counter int32 // Number of currently acquired permits
+	limit   int32 // Maximum permits allowed
+}
+
+func NewSemaphore(limit int32) *Semaphore {
+	return &Semaphore{
+		counter: 0,
+		limit:   limit,
+	}
+}
+
+// Acquire a permit
+func (s *Semaphore) Acquire() {
+	for {
+		current := atomic.LoadInt32(&s.counter)
+		if current < s.limit {
+			if atomic.CompareAndSwapInt32(&s.counter, current, current+1) {
+				// Successfully acquired a permit
+				break
+			}
+		}
+		time.Sleep(time.Millisecond * 5) // Prevent tight busy-wait loops
+	}
+}
+
+// Release a permit
+func (s *Semaphore) Release() {
+	for {
+		current := atomic.LoadInt32(&s.counter)
+		if current > 0 {
+			if atomic.CompareAndSwapInt32(&s.counter, current, current-1) {
+				// Successfully released a permit
+				break
+			}
+		}
+		time.Sleep(time.Millisecond * 5) // Prevent tight busy-wait loops
+	}
 }
