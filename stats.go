@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -41,8 +43,11 @@ var (
 	Stats_SupportedOS = runtime.GOOS == "linux" || runtime.GOOS == "windows"
 )
 
-func du(dir_name_or_file_name string) (Infoblock, error) {
+func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 	result := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
+	limit := (int64)(4000)
+	semaphore := NewSemaphore(limit)      // Limit the number of concurrent goroutines
+	debug.SetMaxThreads((int)(2 * limit)) // Ensure the thread limit is high enough
 
 	_, err := os.Open(dir_name_or_file_name)
 	if err != nil {
@@ -54,7 +59,7 @@ func du(dir_name_or_file_name string) (Infoblock, error) {
 			errorMessage := fmt.Sprintf("Error identifying %v: %v\n", dir_name_or_file_name, err)
 			return result.ib, errors.New(errorMessage)
 		}
-		duInternalDirectory(dir_name_or_file_name, &result)
+		duInternalDirectory(dir_name_or_file_name, &result, semaphore)
 	} else {
 		duInternalFile(dir_name_or_file_name, &result)
 	}
@@ -88,7 +93,7 @@ func duInternalFile(fileName string, info *infoblock_internal) {
 	}
 }
 
-func duInternalDirectory(directoryName string, globalinfo *infoblock_internal) {
+func duInternalDirectory(directoryName string, globalinfo *infoblock_internal, semaphore *Semaphore) {
 	localinfo := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
 	defer addAll(globalinfo, &localinfo) // this is synchronized
 
@@ -118,15 +123,19 @@ func duInternalDirectory(directoryName string, globalinfo *infoblock_internal) {
 
 	// now descend into the directories
 	var wg sync.WaitGroup
+
 	for _, subdir := range subdirs {
-		// descend children in parallel
-		wg.Add(1) // Increment the WaitGroup counter.
-		go func() {
-			defer wg.Done() // Decrement the counter when the goroutine completes.
-			duInternalDirectory(subdir, globalinfo)
-		}()
+		semaphore.Acquire()
+		wg.Add(1)
+		go func(subdir string) {
+			defer func() { semaphore.Release() }() // Release the token when done
+			defer wg.Done()
+			duInternalDirectory(subdir, globalinfo, semaphore)
+		}(subdir)
 	}
+
 	wg.Wait() // Wait for all child directories to complete
+
 }
 
 func addAll(globalinfo, localinfo *infoblock_internal) {
@@ -225,4 +234,44 @@ func openFileWithRetry(filename string, retries, maxwait_seconds int) (*os.File,
 		return file, nil
 	}
 	return nil, fmt.Errorf("failed to open file after %v retries: %s", retries, filename)
+}
+
+type Semaphore struct {
+	counter int64 // Number of currently acquired permits
+	limit   int64 // Maximum permits allowed
+}
+
+func NewSemaphore(limit int64) *Semaphore {
+	return &Semaphore{
+		counter: 0,
+		limit:   limit,
+	}
+}
+
+// Acquire a permit
+func (s *Semaphore) Acquire() {
+	for {
+		current := atomic.LoadInt64(&s.counter)
+		if current < s.limit {
+			if atomic.CompareAndSwapInt64(&s.counter, current, current+1) {
+				// Successfully acquired a permit
+				break
+			}
+		}
+		time.Sleep(time.Millisecond) // Prevent tight busy-wait loops
+	}
+}
+
+// Release a permit
+func (s *Semaphore) Release() {
+	for {
+		current := atomic.LoadInt64(&s.counter)
+		if current > 0 {
+			if atomic.CompareAndSwapInt64(&s.counter, current, current-1) {
+				// Successfully released a permit
+				break
+			}
+		}
+		time.Sleep(time.Millisecond) // Prevent tight busy-wait loops
+	}
 }
