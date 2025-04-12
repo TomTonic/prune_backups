@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -44,7 +45,9 @@ var (
 
 func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 	result := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
-	semaphore := NewSemaphore((int32)(runtime.NumCPU()) * 500) // Limit the number of concurrent goroutines
+	limit := (int32)(runtime.NumCPU()) * 2000
+	semaphore := NewSemaphore(limit)      // Limit the number of concurrent goroutines
+	debug.SetMaxThreads((int)(limit * 2)) // Increase the thread limit
 
 	_, err := os.Open(dir_name_or_file_name)
 	if err != nil {
