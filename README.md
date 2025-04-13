@@ -94,7 +94,7 @@ The exact naming pattern is YYYY-MM-DD_HH-mm, where
 * HH the 2-digit hour (24h format), and
 * mm the 2-digit minute of the time the backup was created.
 
-You can create according directory names usinge the [[date command]](https://man7.org/linux/man-pages/man1/date.1.html) in Linux:
+You can create according directory names usinge the [`date` command](https://man7.org/linux/man-pages/man1/date.1.html) in Linux:
 
 ```Shell
 date +%Y-%m-%d_%H-%M
