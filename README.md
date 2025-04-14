@@ -14,14 +14,15 @@
 
 ### Binary Distribution
 
-You can download fully self-contained executable binaries of this tool for various platforms from the [releases page of this project](https://github.com/TomTonic/prune_backups/releases). To use these binaries, just **copy them on your disk and mark them as executable** ([`chmod u+x`](https://man7.org/linux/man-pages/man1/chmod.1p.html) on Linux and MacOS) resp. mark them as save for execution (Windows and MacOS). These executables are build on the GitHub servers by the GitHub Actions code in this repository. If you don't trust them nonetheless, you can easily build your own executables (see next section).
+You can download fully self-contained executable binaries of `prune_backups` for various platforms from the [releases page of this project](https://github.com/TomTonic/prune_backups/releases). Just navigate to the 'Assets' section of the latest release and download the appropriate binary. To run it just **rename it to 'prune_backups' and mark it as executable** (use [`chmod u+x`](https://man7.org/linux/man-pages/man1/chmod.1p.html) on Linux and MacOS). On Windows and MacOS you will have to **mark the binaries as save for execution**, as they are not digitally signed. These binaries are build on the GitHub servers by the GitHub Actions code in this repository. If you don't trust them either, you can easily build your own binaries from the source code (see next section).
 
 ### Build your own Executables
 
-* Install the Go compiler, if you do not yet have if (check `go version` on the command line). The Go compiler is available for free for many operating systems and architectures (x86, x64, ARM32, ARM64, Windows, Linux, MacOS, etc.), see <https://go.dev/dl/>.
+* Install the Go compiler, if you do not yet have it (check with `go version` on the command line). The Go compiler is available for free for many operating systems and architectures (x86, x64, ARM32, ARM64, Windows, Linux, MacOS, etc.), see <https://go.dev/dl/>.
 * Download source code: `git clone https://github.com/TomTonic/prune_backups.git`
 * Compile the source: `go build`
-* The executable is named `prune_backups` or `prune_backups.exe`, depending on your system. You can place it anywhere you like, as it is fully self-contained.
+* Optionally run the tests: `go test -cover`
+* The executable is named `prune_backups` or `prune_backups.exe`, depending on your system. You can place it anywhere you like, it is fully self-contained.
 * You are ready to go!
 
 ## How do I run it?
