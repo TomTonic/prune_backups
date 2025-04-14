@@ -38,10 +38,11 @@ jobs:
           mkdir -p dist
           GOOS=linux GOARCH=amd64 go build -o dist/prune_backups-amd64-linux .
           GOOS=linux GOARCH=arm64 go build -o dist/prune_backups-arm64-linux .
-          GOOS=linux GOARCH=x86 go build -o dist/prune_backups-x86-linux .
+          GOOS=linux GOARCH=386 go build -o dist/prune_backups-x86-linux .
+          GOOS=linux GOARCH=arm go build -o dist/prune_backups-arm-linux .
           GOOS=windows GOARCH=amd64 go build -o dist/prune_backups-amd64-win.exe .
           GOOS=windows GOARCH=arm64 go build -o dist/prune_backups-arm64-win.exe .
-          GOOS=windows GOARCH=x86 go build -o dist/prune_backups-x86-win.exe .
+          GOOS=windows GOARCH=386 go build -o dist/prune_backups-x86-win.exe .
           GOOS=darwin GOARCH=amd64 go build -o dist/prune_backups-amd64-mac .
           GOOS=darwin GOARCH=arm64 go build -o dist/prune_backups-arm64-mac .
 #          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/prune_backups-${{ matrix.goos }}-${{ matrix.goarch }} .
