@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     name: Build and Release
+    # Declare default permissions as write to be allowed to publich artifacts.
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     strategy:
       matrix:
