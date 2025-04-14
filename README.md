@@ -4,25 +4,33 @@
 ![Coverage](https://raw.githubusercontent.com/TomTonic/prune_backups/badges/.badges/main/coverage.svg)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9890/badge)](https://www.bestpractices.dev/projects/9890)
 
-`prune_backups` is a lightweight tool to elegantly prune (cull, weed, thin, trim, purge - you name it) incremental backups created with rsync or other backup tools. It follows a typical pattern: one backup per hour for a day, one per day for a month, and one per month thereafter.
+`prune_backups` is a small tool to prune (cull, weed, thin, trim, purge - you name it) incremental backups created with rsync or other backup tools. It follows a typical pattern: one backup per hour for a day, one per day for a month, and one per month thereafter.
 
 ## What does the tool do?
 
-The tool `prune_backups` takes a directory name as a command-line argument. It searches for subdirectories matching the naming pattern YYYY-MM-DD_HH-mm, interprets these names as dates, and retains only one directory per hour for the last day, one per day for the last month, and one per month beyond that. The latest directory within each matching time slot is kept. All other directories are moved to a subdirectory named 'to_delete'. The tool **MOVES** directories and **DOES NOT** actually delete anything!
+`prune_backups` takes a directory and searches for subdirectories matching the naming pattern YYYY-MM-DD_HH-mm. It interprets these names as dates, and retains only one directory per hour for the last day, one per day for the last month, and one per month beyond that. The latest directory within each matching time slot is kept. All other directories are moved into a subdirectory; usually named 'to_delete'. For safety and speed, the tool only **MOVES** directories and **DOES NOT** actually delete anything.
 
 ## Installation
 
-* Install the golang-compiler, available for various operating systems and architectures (x86, x64, ARM32, ARM64, Windows, Linux, MacOS, etc.). See <https://go.dev/dl/>.
-* Download source code: `git clone https://github.com/TomTonic/prune_backups.git`.
-* Compile the source code by navigating to the cloned directory and running `go build`.
+### Binary Distribution
+
+You can download fully self-contained executable binaries of this tool for various platforms from the [releases page of this project](https://github.com/TomTonic/prune_backups/releases). To use these binaries, just **copy them on your disk and mark them as executable** ([`chmod u+x`](https://man7.org/linux/man-pages/man1/chmod.1p.html) on Linux and MacOS) resp. mark them as save for execution (Windows and MacOS). These executables are build on the GitHub servers by the GitHub Actions code in this repository. If you don't trust them nonetheless, you can easily build your own executables (see next section).
+
+### Build your own Executables
+
+* Install the Go compiler, if you do not yet have if (check `go version` on the command line). The Go compiler is available for free for many operating systems and architectures (x86, x64, ARM32, ARM64, Windows, Linux, MacOS, etc.), see <https://go.dev/dl/>.
+* Download source code: `git clone https://github.com/TomTonic/prune_backups.git`
+* Compile the source: `go build`
 * The executable is named `prune_backups` or `prune_backups.exe`, depending on your system. You can place it anywhere you like, as it is fully self-contained.
 * You are ready to go!
 
 ## How do I run it?
 
-On the command line: `prune_backups from /mnt/backups`
+On the command line, run `prune_backups from /mnt/backups` to prune your backups folder. Alternatively, call `prune_backups stats /mnt/backups` to get statistics about its contents (it may take a while to collect the information though!).
 
-In a script (with context):
+### Planned Execution
+
+A typical backup script would look as follows. You would, for example, run this script hourly using a cron job on your backup server to backup your web server.
 
 ```Shell
 #!/bin/sh
@@ -50,11 +58,9 @@ ln -nsf $current_snapshot_dir latest
 # prune old backups
 prune_backups from $my_backup_storage_dir
 
-# uncomment the following line if you really want to delete the old backups
+# uncomment the following line if you REALLY want to DELETE the old backups
 # rm -rf $my_backup_storage_dir/to_delete
 ```
-
-You would run this script hourly via cron on your backup server to backup your web server.
 
 ## What will a pruned directory look like?
 
