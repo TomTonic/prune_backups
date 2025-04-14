@@ -15,10 +15,10 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [linux, windows, darwin]
-        goarch: [amd64, arm64]
+#    strategy:
+#      matrix:
+#        goos: [linux, windows, darwin]
+#        goarch: [amd64, arm64]
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
@@ -36,51 +36,18 @@ jobs:
       - name: Build Executable
         run: |
           mkdir -p dist
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/prune_backups-${{ matrix.goos }}-${{ matrix.goarch }} .
+          GOOS=linux GOARCH=amd64 go build -o dist/prune_backups-amd64-linux .
+          GOOS=linux GOARCH=arm64 go build -o dist/prune_backups-arm64-linux .
+          GOOS=linux GOARCH=x86 go build -o dist/prune_backups-x86-linux .
+          GOOS=windows GOARCH=amd64 go build -o dist/prune_backups-amd64-win.exe .
+          GOOS=windows GOARCH=arm64 go build -o dist/prune_backups-arm64-win.exe .
+          GOOS=windows GOARCH=x86 go build -o dist/prune_backups-x86-win.exe .
+          GOOS=darwin GOARCH=amd64 go build -o dist/prune_backups-amd64-mac .
+          GOOS=darwin GOARCH=arm64 go build -o dist/prune_backups-arm64-mac .
+#          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/prune_backups-${{ matrix.goos }}-${{ matrix.goarch }} .
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
         with:
           files: |
             dist/prune_backups-*
-        # uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        # with:
-          # name: binaries
-          # path: dist
-
-#  release:
-#    needs: build
-#    runs-on: ubuntu-latest
-#    strategy:
-#        matrix:
-#          goos: [linux, windows, darwin]
-#          goarch: [amd64, arm64]
-#    steps:
-#      - name: Download Artifacts
-#        uses: actions/download-artifact@v4.2.1
-#        with:
-#          name: binaries
-#          path: ./dist
-
-#      - name: Create GitHub Release
-#        id: create_release
-#        uses: actions/create-release@v1.1.4
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          tag_name: ${{ github.ref_name }}
-#          release_name: Release ${{ github.ref_name }}
-#          body: |
-#            Binaries for release ${{ github.ref_name }} are available.
-#          draft: false
-#          prerelease: false
-
-#      - name: Upload Release Assets
-#        uses: actions/upload-release-asset@v1.0.2
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }}
-#          asset_path: ./dist/prune_backups-*
-#          asset_name: prune_backups-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
-#          asset_content_type: application/octet-stream
