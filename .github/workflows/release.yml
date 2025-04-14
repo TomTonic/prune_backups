@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*' # Triggers on tags like v1.0.0
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build and Release
