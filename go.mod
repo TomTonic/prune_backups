@@ -1,6 +1,6 @@
 module prune_backups
 
-go 1.24.2
+go 1.24.3
 
 require (
 	github.com/alecthomas/kong v1.11.0
