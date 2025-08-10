@@ -47,8 +47,59 @@ jobs:
           GOOS=darwin GOARCH=arm64 go build -o dist/prune_backups-arm64-mac .
 #          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/prune_backups-${{ matrix.goos }}-${{ matrix.goarch }} .
 
+#      - name: Create Debian Package
+#        run: |
+#          mkdir -p debian/DEBIAN
+#          echo "Package: prune_backups" > debian/DEBIAN/control
+#          echo "Version: 1.0.0" >> debian/DEBIAN/control
+#          echo "Architecture: amd64" >> debian/DEBIAN/control
+#          echo "Maintainer: Your Name <you@example.com>" >> debian/DEBIAN/control
+#          echo "Description: Prune Backups Tool" >> debian/DEBIAN/control
+#          mkdir -p debian/usr/local/bin
+#          cp dist/prune_backups-amd64-linux debian/usr/local/bin/prune_backups
+#          dpkg-deb --build debian prune_backups_1.0.0_amd64.deb
+#          mv prune_backups_1.0.0_amd64.deb dist/
+
+#      - name: Create RPM Package
+#        run: |
+#          mkdir -p rpm/SPECS
+#          echo "Name: prune_backups" > rpm/SPECS/prune_backups.spec
+#          echo "Version: 1.0.0" >> rpm/SPECS/prune_backups.spec
+#          echo "Release: 1%{?dist}" >> rpm/SPECS/prune_backups.spec
+#          echo "Summary: Prune Backups Tool" >> rpm/SPECS/prune_backups.spec
+#          echo "License: MIT" >> rpm/SPECS/prune_backups.spec
+#          echo "Source0: %{name}-%{version}.tar.gz" >> rpm/SPECS/prune_backups.spec
+#          echo "%description" >> rpm/SPECS/prune_backups.spec
+#          echo "Prune Backups Tool" >> rpm/SPECS/prune_backups.spec
+#          mkdir -p rpm/SOURCES
+#          tar -czf rpm/SOURCES/prune_backups-1.0.0.tar.gz -C dist prune_backups-amd64-linux
+#          rpmbuild -ba rpm/SPECS/prune_backups.spec
+#          mv ~/rpmbuild/RPMS/x86_64/prune_backups-1.0.0-1.x86_64.rpm dist/
+
+#      - name: Create MSI Installer
+#        run: |
+#          mkdir -p msi
+#          echo "Product: Prune Backups" > msi/product.wxs
+#          echo "Version: 1.0.0" >> msi/product.wxs
+#          echo "Manufacturer: Your Name" >> msi/product.wxs
+#          echo "Executable: dist/prune_backups-amd64-win.exe" >> msi/product.wxs
+#          candle msi/product.wxs
+#          light -out dist/prune_backups-amd64-win.msi msi/product.wixobj
+
+#      - name: Create Homebrew Formula
+#        run: |
+#          echo "class PruneBackups < Formula" > dist/prune_backups.rb
+#          echo "  desc \"Prune Backups Tool\"" >> dist/prune_backups.rb
+#          echo "  homepage \"https://example.com\"" >> dist/prune_backups.rb
+#          echo "  url \"file://#{Dir.pwd}/dist/prune_backups-amd64-mac\"" >> dist/prune_backups.rb
+#          echo "  version \"1.0.0\"" >> dist/prune_backups.rb
+#          echo "  def install" >> dist/prune_backups.rb
+#          echo "    bin.install \"prune_backups-amd64-mac\"" >> dist/prune_backups.rb
+#          echo "  end" >> dist/prune_backups.rb
+
       - name: Upload Release Assets
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
         with:
           files: |
             dist/prune_backups-*
+#            dist/prune_backups.rb
