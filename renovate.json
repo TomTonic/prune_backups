@@ -4,51 +4,84 @@
     "config:recommended",
     "security:openssf-scorecard"
   ],
-  "reviewers": ["TomTonic"],
-  "labels": ["dependencies"],
+  "reviewers": [
+    "TomTonic"
+  ],
+  "labels": [
+    "dependencies"
+  ],
   "commitMessagePrefix": "deps-upd:",
   "commitMessageAction": "Update",
   "timezone": "Europe/Berlin",
-  "schedule": ["before 6am"],
+  "schedule": [
+    "before 6am"
+  ],
   "prHourlyLimit": 2,
   "prConcurrentLimit": 5,
   "packageRules": [
     {
-      "matchManagers": ["gomod"],
+      "matchCategories": [
+        "golang"
+      ],
+      "minimumReleaseAge": "2 days"
+    },
+    {
+      "matchManagers": [
+        "gomod"
+      ],
       "groupName": "Go dependencies"
     },
     {
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "groupName": "GitHub Actions",
-      "schedule": ["before 4pm on friday"]
+      "schedule": [
+        "before 4pm on friday"
+      ]
     },
     {
-      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "matchUpdateTypes": [
+        "patch",
+        "pin",
+        "digest"
+      ],
       "automerge": true,
       "automergeType": "pr"
     },
     {
-      "matchUpdateTypes": ["minor"],
+      "matchUpdateTypes": [
+        "minor"
+      ],
       "automerge": false,
       "reviewersFromCodeOwners": true
     },
     {
-      "matchUpdateTypes": ["major"],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "automerge": false,
       "reviewersFromCodeOwners": true,
-      "labels": ["dependencies", "breaking-change"]
+      "labels": [
+        "dependencies",
+        "breaking-change"
+      ]
     }
   ],
   "vulnerabilityAlerts": {
     "enabled": true,
-    "labels": ["security", "dependencies"],
-    "assignees": ["TomTonic"]
+    "labels": [
+      "security",
+      "dependencies"
+    ],
+    "assignees": [
+      "TomTonic"
+    ]
   },
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am"]
-  },
-  "golang": {
-    "minimumReleaseAge": "2 days"
+    "schedule": [
+      "before 6am"
+    ]
   }
 }
