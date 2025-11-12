@@ -4,3 +4,6 @@ prune_backups.exe
 prune_backups
 .DS_Store
 .vscode/
+
+# Renovate logs
+renovate.log
