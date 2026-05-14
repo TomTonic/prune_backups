@@ -40,7 +40,7 @@ type infoblock_internal struct {
 }
 
 var (
-	Stats_SupportedOS = runtime.GOOS == "linux" || runtime.GOOS == "windows"
+	Stats_SupportedOS = runtime.GOOS == "linux" || runtime.GOOS == "windows" || runtime.GOOS == "darwin"
 )
 
 func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
@@ -49,7 +49,12 @@ func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 	semaphore := NewSemaphore(limit)      // Limit the number of concurrent goroutines
 	debug.SetMaxThreads((int)(2 * limit)) // Ensure the thread limit is high enough
 
-	_, err := os.Open(dir_name_or_file_name)
+	nevermind, err := os.Open(dir_name_or_file_name)
+	defer func() {
+		if nevermind != nil {
+			_ = nevermind.Close()
+		}
+	}()
 	if err != nil {
 		return result.ib, err
 	}
