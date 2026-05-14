@@ -40,7 +40,7 @@ type infoblock_internal struct {
 }
 
 var (
-	Stats_SupportedOS = runtime.GOOS == "linux" || runtime.GOOS == "windows"
+	Stats_SupportedOS = runtime.GOOS == "linux" || runtime.GOOS == "windows" || runtime.GOOS == "darwin"
 )
 
 func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
