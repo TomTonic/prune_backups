@@ -127,9 +127,9 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		err3 := os.Rename(fromPath, toPath)
 		if err3 != nil {
 			if verbosity > 1 {
-				fmt.Println(err)
+				fmt.Println(err3)
 			} else {
-				fmt.Println("Error moving ", fromPath, " to ", toPath, ": ", err)
+				fmt.Println("Error moving ", fromPath, " to ", toPath, ": ", err3)
 			}
 		} else {
 			if verbosity > 1 {
