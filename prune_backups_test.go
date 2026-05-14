@@ -614,8 +614,8 @@ func Test_getFiltersForYesterday(t *testing.T) {
 			remaining := 24 - len(tt.filter_dates_today)
 			got := getFiltersForYesterday(tt.test_time, remaining, tt.existing_dirs)
 			if !reflect.DeepEqual(got, tt.filter_dates_yesterday) {
-				compareArrays(got, tt.filter_dates_today, t)
-				t.Errorf("getFiltersForToday() result not as expected!")
+				compareArrays(got, tt.filter_dates_yesterday, t)
+				t.Errorf("getFiltersForYesterday() result not as expected!")
 			}
 		})
 	}
