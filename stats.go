@@ -49,7 +49,12 @@ func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 	semaphore := NewSemaphore(limit)      // Limit the number of concurrent goroutines
 	debug.SetMaxThreads((int)(2 * limit)) // Ensure the thread limit is high enough
 
-	_, err := os.Open(dir_name_or_file_name)
+	nevermind, err := os.Open(dir_name_or_file_name)
+	defer func() {
+		if nevermind != nil {
+			nevermind.Close()
+		}
+	}()
 	if err != nil {
 		return result.ib, err
 	}
