@@ -52,7 +52,7 @@ func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 	nevermind, err := os.Open(dir_name_or_file_name)
 	defer func() {
 		if nevermind != nil {
-			nevermind.Close()
+			_ = nevermind.Close()
 		}
 	}()
 	if err != nil {
