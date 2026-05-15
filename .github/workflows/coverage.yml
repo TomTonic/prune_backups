@@ -11,7 +11,7 @@ jobs:
       contents: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
           egress-policy: audit
 
@@ -27,7 +27,7 @@ jobs:
         run: go test ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
 
       - name: Generate coverage badge
-        uses: vladopajic/go-test-coverage/action/source@f190f667e23b4441202d0bab0f8c2e7bce8925b6 # v2.18.4
+        uses: vladopajic/go-test-coverage/action/source@a93b868a4cbcbf18dc3781650fad241f0020e609 # v2.18.8
         with:
           config: ./.testcoverage.yml
           git-branch: badges
