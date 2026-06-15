@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -33,8 +32,8 @@ func getAllButFirstMatchingPrefix(from []string, prefix string) []string {
 	return result
 }
 
-func getAnyMatchingAnyPrefixes(search_in []string, prefixes []string) bool {
-	for _, s := range search_in {
+func getAnyMatchingAnyPrefixes(searchIn []string, prefixes []string) bool {
+	for _, s := range searchIn {
 		for _, prefix := range prefixes {
 			if strings.HasPrefix(s, prefix) {
 				return true
@@ -53,30 +52,15 @@ func prevMonth(year *int, month *int) {
 }
 
 func toDateStr(year int, month int) string {
-	if month < 10 {
-		return strconv.Itoa(year) + "-0" + strconv.Itoa(month)
-	} else {
-		return strconv.Itoa(year) + "-" + strconv.Itoa(month)
-	}
+	return fmt.Sprintf("%04d-%02d", year, month)
 }
 
 func toDateStr3(year int, month int, day int) string {
-	strSep1 := "-"
-	strSep2 := "-"
-	if month < 10 {
-		strSep1 = "-0"
-	}
-	if day < 10 {
-		strSep2 = "-0"
-	}
-	return strconv.Itoa(year) + strSep1 + strconv.Itoa(month) + strSep2 + strconv.Itoa(day)
+	return fmt.Sprintf("%04d-%02d-%02d", year, month, day)
 }
 
 func twoDigit(i int) string {
-	if i < 10 {
-		return "0" + strconv.Itoa(i)
-	}
-	return strconv.Itoa(i)
+	return fmt.Sprintf("%02d", i)
 }
 
 func daysInMonth(year int, month time.Month) int {
