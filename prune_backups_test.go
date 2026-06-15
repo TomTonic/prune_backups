@@ -1167,13 +1167,15 @@ func Test_pruneDirectory(t *testing.T) {
 			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 0, false)
 		})
 
-		// Verify
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
+		// Verify: failed moves are logged to stdout AND returned as an error
+		if err == nil {
+			t.Fatalf("Expected an error for failed moves, got nil")
 		}
-		expectedError := "Error moving "
-		if !strings.Contains(output, expectedError) {
-			t.Fatalf("Expected error to contain %q, got %q", expectedError, output)
+		if !strings.Contains(err.Error(), "could not be moved") {
+			t.Fatalf("Expected error to mention failed moves, got %q", err.Error())
+		}
+		if !strings.Contains(output, "Error moving ") {
+			t.Fatalf("Expected output to contain \"Error moving \", got %q", output)
 		}
 	})
 

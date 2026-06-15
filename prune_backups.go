@@ -117,19 +117,19 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 	}
 
 	/* now we have collected all directory names that need to be moved in toDelete. next we will create the target directory and actually move them */
-	var successfulMoveCounter = 0
+	var successfulMoveCounter, failedMoveCounter int
 	for _, dirname := range toDelete {
 		fromPath := filepath.Join(pruneDirName, dirname)
 		toPath := filepath.Join(delPath, dirname)
 		if verbosity > 1 {
 			fmt.Print("Moving ", fromPath, " to ", toPath, "... ")
 		}
-		err3 := os.Rename(fromPath, toPath)
-		if err3 != nil {
+		if moveErr := os.Rename(fromPath, toPath); moveErr != nil {
+			failedMoveCounter++
 			if verbosity > 1 {
-				fmt.Println(err3)
+				fmt.Println(moveErr)
 			} else {
-				fmt.Println("Error moving ", fromPath, " to ", toPath, ": ", err3)
+				fmt.Println("Error moving ", fromPath, " to ", toPath, ": ", moveErr)
 			}
 		} else {
 			if verbosity > 1 {
@@ -141,10 +141,14 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 	if verbosity > 0 {
 		fmt.Println("I moved", successfulMoveCounter, "directories to", delPath)
 	}
-	if showStats {
-		return showStatsOf(delPath)
+	var result error
+	if failedMoveCounter > 0 {
+		result = fmt.Errorf("%d of %d directories could not be moved to %s", failedMoveCounter, len(toDelete), delPath)
 	}
-	return nil
+	if showStats {
+		return errors.Join(result, showStatsOf(delPath))
+	}
+	return result
 }
 
 func showStatsOf(delPath string) error {
