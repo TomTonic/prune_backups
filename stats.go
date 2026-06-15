@@ -60,12 +60,12 @@ func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 	}
 
 	if ok, err := isDirectory(dir_name_or_file_name); ok {
+		duInternalDirectory(dir_name_or_file_name, &result, semaphore)
+	} else {
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error identifying %v: %v\n", dir_name_or_file_name, err)
 			return result.ib, errors.New(errorMessage)
 		}
-		duInternalDirectory(dir_name_or_file_name, &result, semaphore)
-	} else {
 		duInternalFile(dir_name_or_file_name, &result)
 	}
 	return result.ib, nil
