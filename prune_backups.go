@@ -259,7 +259,7 @@ func getFiltersForYesterday(current_time time.Time, remaining_hourly_backups int
 		// we found some hourly backup folders for yesterday, so return the filter for the hourly backups for yesterday, i.e. some YYYY-MM-DD_HH filters
 		return hourlyFilters
 	} else {
-		// we found at least one hourly backup folders for yesterday, so return the filter for the latest backup for yesterday, i.e. one YYYY-MM-DD filter
+		// we found no hourly backup folders for yesterday, so return the filter for the latest backup for yesterday, i.e. one YYYY-MM-DD filter
 		return []string{yester_date_str}
 	}
 }
