@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"runtime/debug"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -45,9 +44,9 @@ var (
 
 func DiskUsage(path string) (Infoblock, error) {
 	result := infoblock_internal{}
-	limit := (int64)(4000)
-	semaphore := NewSemaphore(limit)      // Limit the number of concurrent goroutines
-	debug.SetMaxThreads((int)(2 * limit)) // Ensure the thread limit is high enough
+	const limit = 4000
+	semaphore := NewSemaphore(limit)  // Limit the number of concurrent goroutines
+	debug.SetMaxThreads(2 * limit)    // Ensure the thread limit is high enough
 
 	nevermind, err := os.Open(path)
 	defer func() {
@@ -98,7 +97,7 @@ func duInternalFile(fileName string, info *infoblock_internal) {
 	}
 }
 
-func duInternalDirectory(directoryName string, globalInfo *infoblock_internal, semaphore *Semaphore) {
+func duInternalDirectory(directoryName string, globalInfo *infoblock_internal, semaphore Semaphore) {
 	localInfo := infoblock_internal{}
 	defer addAll(globalInfo, &localInfo) // this is synchronized
 
@@ -241,42 +240,14 @@ func openFileWithRetry(filename string, retries, maxWaitSeconds int) (*os.File, 
 	return nil, fmt.Errorf("failed to open file after %v retries: %s", retries, filename)
 }
 
-type Semaphore struct {
-	counter int64 // Number of currently acquired permits
-	limit   int64 // Maximum permits allowed
+// Semaphore limits concurrent goroutines via a buffered channel.
+// Goroutines park on Acquire when the limit is reached and are woken
+// immediately when a slot is released — no busy-waiting, no polling delay.
+type Semaphore chan struct{}
+
+func NewSemaphore(limit int) Semaphore {
+	return make(Semaphore, limit)
 }
 
-func NewSemaphore(limit int64) *Semaphore {
-	return &Semaphore{
-		counter: 0,
-		limit:   limit,
-	}
-}
-
-// Acquire a permit
-func (s *Semaphore) Acquire() {
-	for {
-		current := atomic.LoadInt64(&s.counter)
-		if current < s.limit {
-			if atomic.CompareAndSwapInt64(&s.counter, current, current+1) {
-				// Successfully acquired a permit
-				break
-			}
-		}
-		time.Sleep(time.Millisecond) // Prevent tight busy-wait loops
-	}
-}
-
-// Release a permit
-func (s *Semaphore) Release() {
-	for {
-		current := atomic.LoadInt64(&s.counter)
-		if current > 0 {
-			if atomic.CompareAndSwapInt64(&s.counter, current, current-1) {
-				// Successfully released a permit
-				break
-			}
-		}
-		time.Sleep(time.Millisecond) // Prevent tight busy-wait loops
-	}
-}
+func (s Semaphore) Acquire() { s <- struct{}{} }
+func (s Semaphore) Release() { <-s }
