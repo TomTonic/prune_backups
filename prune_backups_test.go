@@ -152,11 +152,39 @@ func TestCLI_PruneCommandStatsNotSupported(t *testing.T) {
 
 }
 
-func Test_pruneDirectoryHourlyForFourMonths(t *testing.T) {
-	test_time_gen := time.Date(2024, 6, 17, 9, 49, 33, 0, time.UTC)
-	test_time_prune := time.Date(2024, 6, 17, 9, 54, 21, 0, time.UTC)
+func TestCLI_StatsCommandStatsNotSupported(t *testing.T) {
+	prev := Stats_SupportedOS
+	Stats_SupportedOS = false
+	defer func() {
+		Stats_SupportedOS = prev
+	}()
 
-	test_dir := generateHourlyTestDirectories(t, test_time_gen, 2800)
+	cli := CLI{}
+	parser := kong.Must(&cli,
+		kong.Name("prune_backups"),
+	)
+
+	args := []string{"stats", "./testdata/"}
+	ctx, err := parser.Parse(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err = ctx.Run(&cli)
+	if err == nil {
+		t.Fatalf("expected an error!")
+	}
+	expectedText := "stats command not supported for your OS"
+	if !strings.Contains(err.Error(), expectedText) {
+		t.Fatalf("expected %q, got %q", expectedText, err)
+	}
+}
+
+func Test_pruneDirectoryHourlyForFourMonths(t *testing.T) {
+	testTime_gen := time.Date(2024, 6, 17, 9, 49, 33, 0, time.UTC)
+	testTime_prune := time.Date(2024, 6, 17, 9, 54, 21, 0, time.UTC)
+
+	test_dir := generateHourlyTestDirectories(t, testTime_gen, 2800)
 
 	want := []string{
 		// when sorting lexographically descending, the to_delete directory will be the first
@@ -176,7 +204,7 @@ func Test_pruneDirectoryHourlyForFourMonths(t *testing.T) {
 
 	wanted_number_of_deleted := 2800 - 24 - 30 - 3 // please nothe that the to_delete-directory will not be moved!
 
-	pruneAndCheck(t, test_dir, test_time_prune, want, wanted_number_of_deleted)
+	pruneAndCheck(t, test_dir, testTime_prune, want, wanted_number_of_deleted)
 
 	err := os.RemoveAll(test_dir) // clean up
 	if err != nil {
@@ -185,7 +213,7 @@ func Test_pruneDirectoryHourlyForFourMonths(t *testing.T) {
 }
 
 func Test_pruneDirectoryYesterdayMissing(t *testing.T) {
-	test_time_prune := time.Date(2024, 6, 17, 9, 54, 21, 0, time.UTC)
+	testTime_prune := time.Date(2024, 6, 17, 9, 54, 21, 0, time.UTC)
 
 	given := []string{
 		// some hourly backups for the 17th
@@ -218,7 +246,7 @@ func Test_pruneDirectoryYesterdayMissing(t *testing.T) {
 
 	wanted_number_of_deleted := 5 // please nothe that the to_delete-directory will not be moved!
 
-	pruneAndCheck(t, test_dir, test_time_prune, wanted, wanted_number_of_deleted)
+	pruneAndCheck(t, test_dir, testTime_prune, wanted, wanted_number_of_deleted)
 
 	err := os.RemoveAll(test_dir) // clean up
 	if err != nil {
@@ -226,8 +254,8 @@ func Test_pruneDirectoryYesterdayMissing(t *testing.T) {
 	}
 }
 
-func pruneAndCheck(t *testing.T, test_dir string, test_time_pruning time.Time, expect_remaining []string, number_expect_deleted int) {
-	err := pruneDirectory(test_dir, test_time_pruning, "to_delete", 0, false)
+func pruneAndCheck(t *testing.T, test_dir string, testTime_pruning time.Time, expect_remaining []string, number_expect_deleted int) {
+	err := pruneDirectory(test_dir, testTime_pruning, "to_delete", 0, false)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -267,7 +295,7 @@ func getAllDirectories(t *testing.T, dir string) []string {
 
 const USE_DEFAULT_DIRECTORY_FOR_TEMP_FILES = "" // see https://pkg.go.dev/os#MkdirTemp
 
-func generateHourlyTestDirectories(t *testing.T, test_time time.Time, number int) string {
+func generateHourlyTestDirectories(t *testing.T, testTime time.Time, number int) string {
 	var dir string
 
 	dir, err := os.MkdirTemp(USE_DEFAULT_DIRECTORY_FOR_TEMP_FILES, "prune_backups_testdir")
@@ -276,7 +304,7 @@ func generateHourlyTestDirectories(t *testing.T, test_time time.Time, number int
 	}
 
 	for i := 0; i < number; i++ {
-		next := test_time.Add(time.Duration(-i) * time.Hour)
+		next := testTime.Add(time.Duration(-i) * time.Hour)
 		subDir := next.Format("2006-01-02_15-04")
 		fullPath := filepath.Join(dir, subDir)
 		err2 := os.MkdirAll(fullPath, 0755)
@@ -307,33 +335,33 @@ func generateTestDirectories(t *testing.T, directories []string) string {
 	return dir
 }
 
-func Test_getFiltersForDailys(t *testing.T) {
-	for _, tt := range testsFor30Dailys {
+func Test_getFiltersForDailies(t *testing.T) {
+	for _, tt := range testsFor30Dailies {
 		t.Run(tt.name, func(t *testing.T) {
-			gotFilters, gotMonth := getFiltersForDailys(tt.test_time, tt.existing_dirs)
-			if gotMonth != tt.next_month {
-				t.Errorf("The month to continue diverges: expected=%v, got=%v", gotMonth, tt.next_month)
+			gotFilters, gotMonth := getFiltersForDailies(tt.testTime, tt.existingDirs)
+			if gotMonth != tt.nextMonth {
+				t.Errorf("The month to continue diverges: expected=%v, got=%v", gotMonth, tt.nextMonth)
 			}
-			if !reflect.DeepEqual(gotFilters, tt.filter_dates) {
-				compareArrays(gotFilters, tt.filter_dates, t)
-				t.Errorf("getFiltersForDailys() result not as expected!")
+			if !reflect.DeepEqual(gotFilters, tt.filterDates) {
+				compareArrays(gotFilters, tt.filterDates, t)
+				t.Errorf("getFiltersForDailies() result not as expected!")
 			}
 		})
 	}
 }
 
-var testsFor30Dailys = []struct {
+var testsFor30Dailies = []struct {
 	name          string
-	test_time     time.Time
-	next_month    time.Time
-	existing_dirs []string
-	filter_dates  []string
+	testTime     time.Time
+	nextMonth    time.Time
+	existingDirs []string
+	filterDates  []string
 }{
 	{
 		name:       "Test Case 1a - middle of the month, all existing",
-		test_time:  time.Date(2014, 7, 15, 9, 54, 21, 0, time.UTC),
-		next_month: time.Date(2014, 5, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{
+		testTime:  time.Date(2014, 7, 15, 9, 54, 21, 0, time.UTC),
+		nextMonth: time.Date(2014, 5, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{
 			"2014-07-17_23-54", "2014-07-16_23-54", "2014-07-15_23-54", "2014-07-14_23-54", "2014-07-13_23-54", "2014-07-12_23-54",
 			"2014-07-11_23-54", "2014-07-10_23-54", "2014-07-09_23-54", "2014-07-08_23-54", "2014-07-07_23-54", "2014-07-06_23-54",
 			"2014-07-05_23-54", "2014-07-04_23-54", "2014-07-03_23-54", "2014-07-02_23-54", "2014-07-01_23-54", "2014-06-30_23-54",
@@ -341,7 +369,7 @@ var testsFor30Dailys = []struct {
 			"2014-06-23_23-54", "2014-06-22_23-54", "2014-06-21_23-54", "2014-06-20_23-54", "2014-06-19_23-54", "2014-06-18_23-54",
 			"2014-06-17_23-54", "2014-06-16_23-54", "2014-06-15_23-54", "2014-06-14_23-54", "2014-06-13_23-54", "2014-06-12_23-54",
 		},
-		filter_dates: []string{
+		filterDates: []string{
 			// today and yesterday and 15 days in a month
 			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/
 			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ "2014-07-15", "2014-07-14", "2014-07-13", "2014-07-12", "2014-07-11",
@@ -354,10 +382,10 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:          "Test Case 1b - middle of the month, none existing",
-		test_time:     time.Date(2014, 7, 15, 9, 54, 21, 0, time.UTC),
-		next_month:    time.Date(2014, 5, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{},
-		filter_dates: []string{
+		testTime:     time.Date(2014, 7, 15, 9, 54, 21, 0, time.UTC),
+		nextMonth:    time.Date(2014, 5, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{},
+		filterDates: []string{
 			// today and yesterday and 15 days in a month
 			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/
 			/*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ /*XXXXXXXXX*/ "2014-07-15", "2014-07-14", "2014-07-13", "2014-07-12", "2014-07-11",
@@ -368,9 +396,9 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:       "Test Case 2a - 1st of the month, prev 31 days, all existing",
-		test_time:  time.Date(2022, 8, 1, 23, 54, 21, 0, time.UTC),
-		next_month: time.Date(2022, 6, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{
+		testTime:  time.Date(2022, 8, 1, 23, 54, 21, 0, time.UTC),
+		nextMonth: time.Date(2022, 6, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{
 			"2022-08-01_23-54", "2022-07-31_23-54", "2022-07-30_23-54", "2022-07-29_23-54", "2022-07-28_23-54", "2022-07-27_23-54",
 			"2022-07-26_23-54", "2022-07-25_23-54", "2022-07-24_23-54", "2022-07-23_23-54", "2022-07-22_23-54", "2022-07-21_23-54",
 			"2022-07-20_23-54", "2022-07-19_23-54", "2022-07-18_23-54", "2022-07-17_23-54", "2022-07-16_23-54", "2022-07-15_23-54",
@@ -378,7 +406,7 @@ var testsFor30Dailys = []struct {
 			"2022-07-08_23-54", "2022-07-07_23-54", "2022-07-06_23-54", "2022-07-05_23-54", "2022-07-04_23-54", "2022-07-03_23-54",
 			"2022-07-02_23-54", "2022-07-01_23-54", "2022-06-30_23-54", "2022-06-29_23-54", "2022-06-28_23-54", "2022-06-27_23-54",
 		},
-		filter_dates: []string{
+		filterDates: []string{
 			"2022-08-01", "2022-07-31", "2022-07-30", "2022-07-29", "2022-07-28", "2022-07-27",
 			"2022-07-26", "2022-07-25", "2022-07-24", "2022-07-23", "2022-07-22", "2022-07-21",
 			"2022-07-20", "2022-07-19", "2022-07-18", "2022-07-17", "2022-07-16", "2022-07-15",
@@ -388,10 +416,10 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:          "Test Case 2b - 1st of the month, prev 31 days, none existing",
-		test_time:     time.Date(2022, 8, 1, 23, 54, 21, 0, time.UTC),
-		next_month:    time.Date(2022, 6, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{},
-		filter_dates: []string{
+		testTime:     time.Date(2022, 8, 1, 23, 54, 21, 0, time.UTC),
+		nextMonth:    time.Date(2022, 6, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{},
+		filterDates: []string{
 			"2022-08-01",
 			// complete July
 			"2022-07",
@@ -399,9 +427,9 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:       "Test Case 3a - 1st of the month, prev 29 days, all existing",
-		test_time:  time.Date(2024, 3, 1, 23, 54, 21, 0, time.UTC),
-		next_month: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{
+		testTime:  time.Date(2024, 3, 1, 23, 54, 21, 0, time.UTC),
+		nextMonth: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{
 			"2024-03-01_23-54", "2024-02-29_23-54", "2024-02-28_23-54", "2024-02-27_23-54", "2024-02-26_23-54", "2024-02-25_23-54",
 			"2024-02-24_23-54", "2024-02-23_23-54", "2024-02-22_23-54", "2024-02-21_23-54", "2024-02-20_23-54", "2024-02-19_23-54",
 			"2024-02-18_23-54", "2024-02-17_23-54", "2024-02-16_23-54", "2024-02-15_23-54", "2024-02-14_23-54", "2024-02-13_23-54",
@@ -409,7 +437,7 @@ var testsFor30Dailys = []struct {
 			"2024-02-06_23-54", "2024-02-05_23-54", "2024-02-04_23-54", "2024-02-03_23-54", "2024-02-02_23-54", "2024-02-01_23-54",
 			"2024-01-31_23-54", "2024-01-30_23-54", "2024-01-29_23-54", "2024-01-28_23-54", "2024-01-27_23-54", "2024-01-26_23-54",
 		},
-		filter_dates: []string{
+		filterDates: []string{
 			"2024-03-01", "2024-02-29", "2024-02-28", "2024-02-27", "2024-02-26", "2024-02-25",
 			"2024-02-24", "2024-02-23", "2024-02-22", "2024-02-21", "2024-02-20", "2024-02-19",
 			"2024-02-18", "2024-02-17", "2024-02-16", "2024-02-15", "2024-02-14", "2024-02-13",
@@ -419,10 +447,10 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:          "Test Case 3a - 1st of the month, prev 29 days, none existing",
-		test_time:     time.Date(2024, 3, 1, 23, 54, 21, 0, time.UTC),
-		next_month:    time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{},
-		filter_dates: []string{
+		testTime:     time.Date(2024, 3, 1, 23, 54, 21, 0, time.UTC),
+		nextMonth:    time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{},
+		filterDates: []string{
 			"2024-03-01", "2024-02-29", "2024-02-28", "2024-02-27", "2024-02-26", "2024-02-25",
 			"2024-02-24", "2024-02-23", "2024-02-22", "2024-02-21", "2024-02-20", "2024-02-19",
 			"2024-02-18", "2024-02-17", "2024-02-16", "2024-02-15", "2024-02-14", "2024-02-13",
@@ -432,9 +460,9 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:       "Test Case 4a - 1st of the month, prev 28 days (3 months coverage), all existing",
-		test_time:  time.Date(2023, 3, 1, 23, 54, 21, 0, time.UTC),
-		next_month: time.Date(2022, 12, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{
+		testTime:  time.Date(2023, 3, 1, 23, 54, 21, 0, time.UTC),
+		nextMonth: time.Date(2022, 12, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{
 			"2023-03-01_23-54", "2023-02-28_23-54", "2023-02-27_23-54", "2023-02-26_23-54", "2023-02-25_23-54", "2023-02-24_23-54",
 			"2023-02-23_23-54", "2023-02-22_23-54", "2023-02-21_23-54", "2023-02-20_23-54", "2023-02-19_23-54", "2023-02-18_23-54",
 			"2023-02-17_23-54", "2023-02-16_23-54", "2023-02-15_23-54", "2023-02-14_23-54", "2023-02-13_23-54", "2023-02-12_23-54",
@@ -442,7 +470,7 @@ var testsFor30Dailys = []struct {
 			"2023-02-05_23-54", "2023-02-04_23-54", "2023-02-03_23-54", "2023-02-02_23-54", "2023-02-01_23-54", "2023-01-31_23-54",
 			"2023-01-30_23-54", "2023-01-29_23-54", "2023-01-28_23-54", "2023-01-27_23-54", "2023-01-26_23-54", "2023-01-25_23-54",
 		},
-		filter_dates: []string{
+		filterDates: []string{
 			"2023-03-01", "2023-02-28", "2023-02-27", "2023-02-26", "2023-02-25", "2023-02-24",
 			"2023-02-23", "2023-02-22", "2023-02-21", "2023-02-20", "2023-02-19", "2023-02-18",
 			"2023-02-17", "2023-02-16", "2023-02-15", "2023-02-14", "2023-02-13", "2023-02-12",
@@ -452,10 +480,10 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:          "Test Case 4a - 1st of the month, prev 28 days (3 months coverage), none existing",
-		test_time:     time.Date(2023, 3, 1, 23, 54, 21, 0, time.UTC),
-		next_month:    time.Date(2022, 12, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{},
-		filter_dates: []string{
+		testTime:     time.Date(2023, 3, 1, 23, 54, 21, 0, time.UTC),
+		nextMonth:    time.Date(2022, 12, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{},
+		filterDates: []string{
 			"2023-03-01", "2023-02-28", "2023-02-27", "2023-02-26", "2023-02-25", "2023-02-24",
 			"2023-02-23", "2023-02-22", "2023-02-21", "2023-02-20", "2023-02-19", "2023-02-18",
 			"2023-02-17", "2023-02-16", "2023-02-15", "2023-02-14", "2023-02-13", "2023-02-12",
@@ -467,9 +495,9 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:       "Test Case 5a - 30th of the month, has >30 days (only 1 month coverage), all existing",
-		test_time:  time.Date(2024, 4, 30, 23, 54, 21, 0, time.UTC),
-		next_month: time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{
+		testTime:  time.Date(2024, 4, 30, 23, 54, 21, 0, time.UTC),
+		nextMonth: time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{
 			"2024-04-30_23-54", "2024-04-29_23-54", "2024-04-28_23-54", "2024-04-27_23-54", "2024-04-26_23-54", "2024-04-25_23-54",
 			"2024-04-24_23-54", "2024-04-23_23-54", "2024-04-22_23-54", "2024-04-21_23-54", "2024-04-20_23-54", "2024-04-19_23-54",
 			"2024-04-18_23-54", "2024-04-17_23-54", "2024-04-16_23-54", "2024-04-15_23-54", "2024-04-14_23-54", "2024-04-13_23-54",
@@ -477,7 +505,7 @@ var testsFor30Dailys = []struct {
 			"2024-04-06_23-54", "2024-04-05_23-54", "2024-04-04_23-54", "2024-04-03_23-54", "2024-04-02_23-54", "2024-04-01_23-54",
 			"2024-03-31_23-54", "2024-03-30_23-54", "2024-03-29_23-54", "2024-03-28_23-54", "2024-03-27_23-54", "2024-03-26_23-54",
 		},
-		filter_dates: []string{
+		filterDates: []string{
 			"2024-04-30", "2024-04-29", "2024-04-28", "2024-04-27", "2024-04-26", "2024-04-25",
 			"2024-04-24", "2024-04-23", "2024-04-22", "2024-04-21", "2024-04-20", "2024-04-19",
 			"2024-04-18", "2024-04-17", "2024-04-16", "2024-04-15", "2024-04-14", "2024-04-13",
@@ -487,10 +515,10 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:          "Test Case 5b - 30th of the month, has 30 days (only 1 month coverage), none existing",
-		test_time:     time.Date(2024, 4, 30, 23, 54, 21, 0, time.UTC),
-		next_month:    time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{},
-		filter_dates: []string{
+		testTime:     time.Date(2024, 4, 30, 23, 54, 21, 0, time.UTC),
+		nextMonth:    time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{},
+		filterDates: []string{
 			"2024-04-30", "2024-04-29", "2024-04-28", "2024-04-27", "2024-04-26", "2024-04-25",
 			"2024-04-24", "2024-04-23", "2024-04-22", "2024-04-21", "2024-04-20", "2024-04-19",
 			"2024-04-18", "2024-04-17", "2024-04-16", "2024-04-15", "2024-04-14", "2024-04-13",
@@ -500,10 +528,10 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:          "Test Case 5c - 30th of the month, has 31 days (only 1 month coverage), none existing",
-		test_time:     time.Date(2024, 5, 30, 23, 54, 21, 0, time.UTC),
-		next_month:    time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{},
-		filter_dates: []string{
+		testTime:     time.Date(2024, 5, 30, 23, 54, 21, 0, time.UTC),
+		nextMonth:    time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{},
+		filterDates: []string{
 			"2024-05-30", "2024-05-29", "2024-05-28", "2024-05-27", "2024-05-26", "2024-05-25",
 			"2024-05-24", "2024-05-23", "2024-05-22", "2024-05-21", "2024-05-20", "2024-05-19",
 			"2024-05-18", "2024-05-17", "2024-05-16", "2024-05-15", "2024-05-14", "2024-05-13",
@@ -513,9 +541,9 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:       "Test Case 6a - 31st of the month, all existing",
-		test_time:  time.Date(2024, 5, 31, 23, 54, 21, 0, time.UTC),
-		next_month: time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{
+		testTime:  time.Date(2024, 5, 31, 23, 54, 21, 0, time.UTC),
+		nextMonth: time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{
 			"2024-05-31_23-54", "2024-05-30_23-54", "2024-05-29_23-54", "2024-05-28_23-54", "2024-05-27_23-54", "2024-05-26_23-54",
 			"2024-05-25_23-54", "2024-05-24_23-54", "2024-05-23_23-54", "2024-05-22_23-54", "2024-05-21_23-54", "2024-05-20_23-54",
 			"2024-05-19_23-54", "2024-05-18_23-54", "2024-05-17_23-54", "2024-05-16_23-54", "2024-05-15_23-54", "2024-05-14_23-54",
@@ -523,7 +551,7 @@ var testsFor30Dailys = []struct {
 			"2024-05-07_23-54", "2024-05-06_23-54", "2024-05-05_23-54", "2024-05-04_23-54", "2024-05-03_23-54", "2024-05-02_23-54",
 			"2024-05-01_23-54", "2024-04-30_23-54", "2024-04-29_23-54", "2024-04-28_23-54", "2024-04-27_23-54", "2024-04-26_23-54",
 		},
-		filter_dates: []string{
+		filterDates: []string{
 			"2024-05-31", "2024-05-30", "2024-05-29", "2024-05-28", "2024-05-27", "2024-05-26",
 			"2024-05-25", "2024-05-24", "2024-05-23", "2024-05-22", "2024-05-21", "2024-05-20",
 			"2024-05-19", "2024-05-18", "2024-05-17", "2024-05-16", "2024-05-15", "2024-05-14",
@@ -533,18 +561,18 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:          "Test Case 6b - 31st of the month, none existing",
-		test_time:     time.Date(2024, 5, 31, 23, 54, 21, 0, time.UTC),
-		next_month:    time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{},
-		filter_dates: []string{
+		testTime:     time.Date(2024, 5, 31, 23, 54, 21, 0, time.UTC),
+		nextMonth:    time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{},
+		filterDates: []string{
 			"2024-05",
 		},
 	},
 	{
 		name:       "Test Case 7a - 2nd of the month, prev 28 days, all existing",
-		test_time:  time.Date(2023, 3, 2, 20, 34, 58, 0, time.UTC),
-		next_month: time.Date(2023, 1, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{
+		testTime:  time.Date(2023, 3, 2, 20, 34, 58, 0, time.UTC),
+		nextMonth: time.Date(2023, 1, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{
 			"2023-03-02_20-34", "2023-03-01_20-34", "2023-02-28_20-34", "2023-02-27_20-34", "2023-02-26_20-34", "2023-02-25_20-34",
 			"2023-02-24_20-34", "2023-02-23_20-34", "2023-02-22_20-34", "2023-02-21_20-34", "2023-02-20_20-34", "2023-02-19_20-34",
 			"2023-02-18_20-34", "2023-02-17_20-34", "2023-02-16_20-34", "2023-02-15_20-34", "2023-02-14_20-34", "2023-02-13_20-34",
@@ -552,7 +580,7 @@ var testsFor30Dailys = []struct {
 			"2023-02-06_20-34", "2023-02-05_20-34", "2023-02-04_20-34", "2023-02-03_20-34", "2023-02-02_20-34", "2023-02-01_20-34",
 			"2023-01-31_20-34", "2023-01-30_20-34", "2023-01-29_20-34", "2023-01-28_20-34", "2023-01-27_20-34", "2023-01-26_20-34",
 		},
-		filter_dates: []string{
+		filterDates: []string{
 			"2023-03-02", "2023-03-01", "2023-02-28", "2023-02-27", "2023-02-26", "2023-02-25",
 			"2023-02-24", "2023-02-23", "2023-02-22", "2023-02-21", "2023-02-20", "2023-02-19",
 			"2023-02-18", "2023-02-17", "2023-02-16", "2023-02-15", "2023-02-14", "2023-02-13",
@@ -562,9 +590,9 @@ var testsFor30Dailys = []struct {
 	},
 	{
 		name:       "Test Case 7b - 2nd of the month, prev 29 days, all existing",
-		test_time:  time.Date(2024, 3, 2, 23, 54, 21, 0, time.UTC),
-		next_month: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
-		existing_dirs: []string{
+		testTime:  time.Date(2024, 3, 2, 23, 54, 21, 0, time.UTC),
+		nextMonth: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		existingDirs: []string{
 			"2024-03-02_23-54", "2024-03-01_23-54", "2024-02-29_23-54", "2024-02-28_23-54", "2024-02-27_23-54", "2024-02-26_23-54",
 			"2024-02-25_23-54", "2024-02-24_23-54", "2024-02-23_23-54", "2024-02-22_23-54", "2024-02-21_23-54", "2024-02-20_23-54",
 			"2024-02-19_23-54", "2024-02-18_23-54", "2024-02-17_23-54", "2024-02-16_23-54", "2024-02-15_23-54", "2024-02-14_23-54",
@@ -572,7 +600,7 @@ var testsFor30Dailys = []struct {
 			"2024-02-07_23-54", "2024-02-06_23-54", "2024-02-05_23-54", "2024-02-04_23-54", "2024-02-03_23-54", "2024-02-02_23-54",
 			"2024-02-01_23-54", "2024-01-31_23-54", "2024-01-30_23-54", "2024-01-29_23-54", "2024-01-28_23-54", "2024-01-27_23-54",
 		},
-		filter_dates: []string{
+		filterDates: []string{
 			"2024-03-02", "2024-03-01", "2024-02-29", "2024-02-28", "2024-02-27", "2024-02-26",
 			"2024-02-25", "2024-02-24", "2024-02-23", "2024-02-22", "2024-02-21", "2024-02-20",
 			"2024-02-19", "2024-02-18", "2024-02-17", "2024-02-16", "2024-02-15", "2024-02-14",
@@ -582,26 +610,26 @@ var testsFor30Dailys = []struct {
 	},
 }
 
-func Test_getFiltersForHourlys(t *testing.T) {
-	for _, tt := range testsForHourlys {
+func Test_getFiltersForHourlies(t *testing.T) {
+	for _, tt := range testsForHourlies {
 		t.Run(tt.name, func(t *testing.T) {
-			expected := append([]string{}, tt.filter_dates_today...)
-			expected = append(expected, tt.filter_dates_yesterday...)
-			got := getFiltersForHourlys(tt.test_time, tt.existing_dirs)
+			expected := append([]string{}, tt.filterDatesToday...)
+			expected = append(expected, tt.filterDatesYesterday...)
+			got := getFiltersForHourlies(tt.testTime, tt.existingDirs)
 			if !reflect.DeepEqual(got, expected) {
 				compareArrays(got, expected, t)
-				t.Errorf("getFiltersForHourlys() result not as expected!")
+				t.Errorf("getFiltersForHourlies() result not as expected!")
 			}
 		})
 	}
 }
 
 func Test_getFiltersForToday(t *testing.T) {
-	for _, tt := range testsForHourlys {
+	for _, tt := range testsForHourlies {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getFiltersForToday(tt.test_time)
-			if !reflect.DeepEqual(got, tt.filter_dates_today) {
-				compareArrays(got, tt.filter_dates_today, t)
+			got := getFiltersForToday(tt.testTime)
+			if !reflect.DeepEqual(got, tt.filterDatesToday) {
+				compareArrays(got, tt.filterDatesToday, t)
 				t.Errorf("getFiltersForToday() result not as expected!")
 			}
 		})
@@ -609,31 +637,31 @@ func Test_getFiltersForToday(t *testing.T) {
 }
 
 func Test_getFiltersForYesterday(t *testing.T) {
-	for _, tt := range testsForHourlys {
+	for _, tt := range testsForHourlies {
 		t.Run(tt.name, func(t *testing.T) {
-			remaining := 24 - len(tt.filter_dates_today)
-			got := getFiltersForYesterday(tt.test_time, remaining, tt.existing_dirs)
-			if !reflect.DeepEqual(got, tt.filter_dates_yesterday) {
-				compareArrays(got, tt.filter_dates_yesterday, t)
+			remaining := 24 - len(tt.filterDatesToday)
+			got := getFiltersForYesterday(tt.testTime, remaining, tt.existingDirs)
+			if !reflect.DeepEqual(got, tt.filterDatesYesterday) {
+				compareArrays(got, tt.filterDatesYesterday, t)
 				t.Errorf("getFiltersForYesterday() result not as expected!")
 			}
 		})
 	}
 }
 
-var testsForHourlys = []struct {
+var testsForHourlies = []struct {
 	name                   string
-	test_time              time.Time
-	existing_dirs          []string
-	extra_daily_needed     bool
-	extra_daily            string
-	filter_dates_today     []string
-	filter_dates_yesterday []string
+	testTime              time.Time
+	existingDirs          []string
+	extraDailyNeeded     bool
+	extraDaily            string
+	filterDatesToday     []string
+	filterDatesYesterday []string
 }{
 	{
 		name:      "Test Case 1 - all and more, with Feb in leap year",
-		test_time: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
-		existing_dirs: []string{
+		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existingDirs: []string{
 			"2024-03-01_20-13", "2024-03-01_19-13", "2024-03-01_18-13", "2024-03-01_17-13", "2024-03-01_16-13", "2024-03-01_15-13" /* extra: */, "2024-03-01_15-03",
 			"2024-03-01_14-13", "2024-03-01_13-13", "2024-03-01_12-13", "2024-03-01_11-13", "2024-03-01_10-13", "2024-03-01_09-13",
 			"2024-03-01_08-13", "2024-03-01_07-13", "2024-03-01_06-13", "2024-03-01_05-13", "2024-03-01_04-13", "2024-03-01_03-13",
@@ -641,38 +669,38 @@ var testsForHourlys = []struct {
 			// extra:
 			"2024-02-29_20-13", "2024-02-29_19-13",
 		},
-		extra_daily_needed: false,
-		extra_daily:        "2024-02-29",
-		filter_dates_today: []string{
+		extraDailyNeeded: false,
+		extraDaily:        "2024-02-29",
+		filterDatesToday: []string{
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
 			"2024-03-01_08", "2024-03-01_07", "2024-03-01_06", "2024-03-01_05", "2024-03-01_04", "2024-03-01_03",
 			"2024-03-01_02", "2024-03-01_01", "2024-03-01_00", /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/
 		},
-		filter_dates_yesterday: []string{
+		filterDatesYesterday: []string{
 			/*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ "2024-02-29_23", "2024-02-29_22", "2024-02-29_21",
 		},
 	},
 	{
 		name:               "Test Case 2 - no existing dirs, with Feb in leap year",
-		test_time:          time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
-		existing_dirs:      []string{},
-		extra_daily_needed: true,
-		extra_daily:        "2024-02-29",
-		filter_dates_today: []string{
+		testTime:          time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existingDirs:      []string{},
+		extraDailyNeeded: true,
+		extraDaily:        "2024-02-29",
+		filterDatesToday: []string{
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
 			"2024-03-01_08", "2024-03-01_07", "2024-03-01_06", "2024-03-01_05", "2024-03-01_04", "2024-03-01_03",
 			"2024-03-01_02", "2024-03-01_01", "2024-03-01_00", /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/
 		},
-		filter_dates_yesterday: []string{
+		filterDatesYesterday: []string{
 			"2024-02-29",
 		},
 	},
 	{
 		name:      "Test Case 3 - sparse, one hit yesterday, with Feb in leap year",
-		test_time: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
-		existing_dirs: []string{
+		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existingDirs: []string{
 			/*XXXXXXXXXXXXXXX*/ "2024-03-01_19-13", "2024-03-01_18-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_16-13", /*XXXXXXXXXXXXXXX*/
 			"2024-03-01_14-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_12-13", /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/
 			/*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ "2024-03-01_05-13", "2024-03-01_04-13", /*XXXXXXXXXXXXXXX*/
@@ -680,22 +708,22 @@ var testsForHourlys = []struct {
 			// extra:
 			/*XXXXXXXXXXXXXXX*/ "2024-02-29_19-13",
 		},
-		extra_daily_needed: false,
-		extra_daily:        "2024-02-29",
-		filter_dates_today: []string{
+		extraDailyNeeded: false,
+		extraDaily:        "2024-02-29",
+		filterDatesToday: []string{
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
 			"2024-03-01_08", "2024-03-01_07", "2024-03-01_06", "2024-03-01_05", "2024-03-01_04", "2024-03-01_03",
 			"2024-03-01_02", "2024-03-01_01", "2024-03-01_00", /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/
 		},
-		filter_dates_yesterday: []string{
+		filterDatesYesterday: []string{
 			/*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ "2024-02-29_23", "2024-02-29_22", "2024-02-29_21",
 		},
 	},
 	{
 		name:      "Test Case 4 - sparse, no hit yesterday, with Feb in leap year",
-		test_time: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
-		existing_dirs: []string{
+		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existingDirs: []string{
 			/*XXXXXXXXXXXXXXX*/ "2024-03-01_19-13", "2024-03-01_18-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_16-13", /*XXXXXXXXXXXXXXX*/
 			"2024-03-01_14-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_12-13", /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/
 			/*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ /*XXXXXXXXXXXXXXX*/ "2024-03-01_05-13", "2024-03-01_04-13", /*XXXXXXXXXXXXXXX*/
@@ -703,22 +731,22 @@ var testsForHourlys = []struct {
 			// extra:
 			/*XXXXXXXXXXXXXXX*/ "2024-02-29_19-13",
 		},
-		extra_daily_needed: true,
-		extra_daily:        "2024-02-29",
-		filter_dates_today: []string{
+		extraDailyNeeded: true,
+		extraDaily:        "2024-02-29",
+		filterDatesToday: []string{
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
 			"2024-03-01_08", "2024-03-01_07", "2024-03-01_06", "2024-03-01_05", "2024-03-01_04", "2024-03-01_03",
 			"2024-03-01_02", "2024-03-01_01", "2024-03-01_00", /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/ /*XXXXXXXXXXXX*/
 		},
-		filter_dates_yesterday: []string{
+		filterDatesYesterday: []string{
 			"2024-02-29",
 		},
 	},
 	{
 		name:      "Test Case 5 - 24 on a day, with Feb in leap year",
-		test_time: time.Date(2024, 3, 1, 23, 34, 58, 0, time.UTC),
-		existing_dirs: []string{
+		testTime: time.Date(2024, 3, 1, 23, 34, 58, 0, time.UTC),
+		existingDirs: []string{
 			"2024-03-01_23-13", "2024-03-01_22-13", "2024-03-01_21-13", "2024-03-01_20-13", "2024-03-01_19-13", "2024-03-01_18-13",
 			"2024-03-01_17-13", "2024-03-01_16-13", "2024-03-01_15-13", "2024-03-01_14-13", "2024-03-01_13-13", "2024-03-01_12-13",
 			"2024-03-01_11-13", "2024-03-01_10-13", "2024-03-01_09-13", "2024-03-01_08-13", "2024-03-01_07-13", "2024-03-01_06-13",
@@ -726,23 +754,23 @@ var testsForHourlys = []struct {
 			// extra:
 			"2024-02-29_23-13", "2024-02-29_22-13",
 		},
-		extra_daily_needed: true,
-		extra_daily:        "2024-02-29",
-		filter_dates_today: []string{
+		extraDailyNeeded: true,
+		extraDaily:        "2024-02-29",
+		filterDatesToday: []string{
 
 			"2024-03-01_23", "2024-03-01_22", "2024-03-01_21", "2024-03-01_20", "2024-03-01_19", "2024-03-01_18",
 			"2024-03-01_17", "2024-03-01_16", "2024-03-01_15", "2024-03-01_14", "2024-03-01_13", "2024-03-01_12",
 			"2024-03-01_11", "2024-03-01_10", "2024-03-01_09", "2024-03-01_08", "2024-03-01_07", "2024-03-01_06",
 			"2024-03-01_05", "2024-03-01_04", "2024-03-01_03", "2024-03-01_02", "2024-03-01_01", "2024-03-01_00",
 		},
-		filter_dates_yesterday: []string{
+		filterDatesYesterday: []string{
 			"2024-02-29",
 		},
 	},
 	{
 		name:      "Test Case 6 - 00 o'clock",
-		test_time: time.Date(2024, 3, 2, 0, 34, 58, 0, time.UTC),
-		existing_dirs: []string{
+		testTime: time.Date(2024, 3, 2, 0, 34, 58, 0, time.UTC),
+		existingDirs: []string{
 			"2024-03-02_00-13",
 			"2024-03-01_23-13", "2024-03-01_22-13", "2024-03-01_21-13", "2024-03-01_20-13", "2024-03-01_19-13", "2024-03-01_18-13",
 			"2024-03-01_17-13", "2024-03-01_16-13", "2024-03-01_15-13", "2024-03-01_14-13", "2024-03-01_13-13", "2024-03-01_12-13",
@@ -751,12 +779,12 @@ var testsForHourlys = []struct {
 			// extra:
 			"2024-02-29_23-13", "2024-02-29_22-13",
 		},
-		extra_daily_needed: false,
-		extra_daily:        "2024-03-01",
-		filter_dates_today: []string{
+		extraDailyNeeded: false,
+		extraDaily:        "2024-03-01",
+		filterDatesToday: []string{
 			"2024-03-02_00",
 		},
-		filter_dates_yesterday: []string{
+		filterDatesYesterday: []string{
 			"2024-03-01_23", "2024-03-01_22", "2024-03-01_21", "2024-03-01_20", "2024-03-01_19", "2024-03-01_18",
 			"2024-03-01_17", "2024-03-01_16", "2024-03-01_15", "2024-03-01_14", "2024-03-01_13", "2024-03-01_12",
 			"2024-03-01_11", "2024-03-01_10", "2024-03-01_09", "2024-03-01_08", "2024-03-01_07", "2024-03-01_06",
@@ -767,14 +795,14 @@ var testsForHourlys = []struct {
 
 var testsForAllFilters = []struct {
 	name             string
-	test_time        time.Time
-	existing_dirs    []string
-	expected_filters []string
+	testTime        time.Time
+	existingDirs    []string
+	expectedFilters []string
 }{
 	{
 		name:      "Test Case 1 - all there",
-		test_time: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
-		existing_dirs: []string{
+		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existingDirs: []string{
 			// 24 hourlys
 			"2024-03-01_20-13", "2024-03-01_19-13", "2024-03-01_18-13", "2024-03-01_17-13", "2024-03-01_16-13", "2024-03-01_15-13",
 			"2024-03-01_14-13", "2024-03-01_13-13", "2024-03-01_12-13", "2024-03-01_11-13", "2024-03-01_10-13", "2024-03-01_09-13",
@@ -790,7 +818,7 @@ var testsForAllFilters = []struct {
 			// 6 monthlys
 			"2023-12-28_23-13", "2023-11-28_23-13", "2023-10-28_23-13", "2023-09-28_23-13", "2023-08-28_23-13", "2023-07-28_23-13",
 		},
-		expected_filters: []string{
+		expectedFilters: []string{
 			// 24 for the hours
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
@@ -815,8 +843,8 @@ var testsForAllFilters = []struct {
 	},
 	{
 		name:      "Test Case 2 - no Hourlys for the 29th of February, no January Dailys",
-		test_time: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
-		existing_dirs: []string{
+		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existingDirs: []string{
 			// hourlys - none for the 29th
 			"2024-03-01_20-13", "2024-03-01_19-13", "2024-03-01_18-13", "2024-03-01_17-13", "2024-03-01_16-13", "2024-03-01_15-13",
 			"2024-03-01_14-13", "2024-03-01_13-13", "2024-03-01_12-13", "2024-03-01_11-13", "2024-03-01_10-13", "2024-03-01_09-13",
@@ -832,7 +860,7 @@ var testsForAllFilters = []struct {
 			// 6 monthlys
 			"2023-12-28_23-13", "2023-11-28_23-13", "2023-10-28_23-13", "2023-09-28_23-13", "2023-08-28_23-13", "2023-07-28_23-13",
 		},
-		expected_filters: []string{
+		expectedFilters: []string{
 			// 21 Hourlys for the 3.1.
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
@@ -864,9 +892,9 @@ var testsForAllFilters = []struct {
 func Test_getAllFilters(t *testing.T) {
 	for _, tt := range testsForAllFilters {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getAllFilters(tt.test_time, tt.existing_dirs)
-			if !reflect.DeepEqual(got, tt.expected_filters) {
-				compareArrays(got, tt.expected_filters, t)
+			got := getAllFilters(tt.testTime, tt.existingDirs)
+			if !reflect.DeepEqual(got, tt.expectedFilters) {
+				compareArrays(got, tt.expectedFilters, t)
 				t.Errorf("getAllFilters() result not as expected!")
 			}
 		})
@@ -1167,14 +1195,132 @@ func Test_pruneDirectory(t *testing.T) {
 			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 0, false)
 		})
 
-		// Verify
+		// Verify: failed moves are logged to stdout AND returned as an error
+		if err == nil {
+			t.Fatalf("Expected an error for failed moves, got nil")
+		}
+		if !strings.Contains(err.Error(), "could not be moved") {
+			t.Fatalf("Expected error to mention failed moves, got %q", err.Error())
+		}
+		if !strings.Contains(output, "Error moving ") {
+			t.Fatalf("Expected output to contain \"Error moving \", got %q", output)
+		}
+	})
+
+	t.Run("Test_pruneDirectory_ErrorCreatingDirectory_Verbose", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+		}
+
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
 		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
+			t.Fatalf("Failed to create prune directory: %v", err)
 		}
-		expectedError := "Error moving "
-		if !strings.Contains(output, expectedError) {
-			t.Fatalf("Expected error to contain %q, got %q", expectedError, output)
+
+		// Create date-formatted dirs so toDelete is non-empty when mkdir fails
+		for _, dir := range []string{"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-16_23-49"} {
+			if mkErr := os.Mkdir(filepath.Join(pruneDir, dir), 0755); mkErr != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, mkErr)
+			}
 		}
+
+		err = os.Chmod(pruneDir, 0444)
+		if err != nil {
+			t.Fatalf("Failed to set directory permissions: %v", err)
+		}
+		defer func() { _ = os.Chmod(pruneDir, 0755) }() // restore so t.TempDir() can clean up
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC)
+		err = pruneDirectory(pruneDir, relativeTime, "to_delete", 1, false)
+
+		if err == nil {
+			t.Fatalf("Expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "Error creating directory") {
+			t.Fatalf("Expected error to contain %q, got %q", "Error creating directory", err.Error())
+		}
+		if !strings.Contains(err.Error(), "I would have moved the following directories there") {
+			t.Fatalf("Expected error to list directories, got %q", err.Error())
+		}
+		if !strings.Contains(err.Error(), "2024-06-17_08-49") {
+			t.Fatalf("Expected error to name specific directories, got %q", err.Error())
+		}
+	})
+
+	t.Run("Test_pruneDirectory_ErrorMovingWithStats", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+		}
+		if !Stats_SupportedOS {
+			t.Skip("stats not supported on this OS")
+		}
+
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		for _, dir := range []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+		} {
+			if mkErr := os.Mkdir(filepath.Join(pruneDir, dir), 0444); mkErr != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, mkErr)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC)
+
+		// Suppress stats output; we only care about the returned error
+		_ = captureOutput(func() {
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 0, true)
+		})
+
+		if err == nil {
+			t.Fatalf("Expected an error for failed moves, got nil")
+		}
+		if !strings.Contains(err.Error(), "could not be moved") {
+			t.Fatalf("Expected error to mention failed moves, got %q", err.Error())
+		}
+	})
+
+	t.Run("Test_pruneDirectory_ErrorMovingDirectory_Verbose", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+		}
+
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		for _, dir := range []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+		} {
+			if mkErr := os.Mkdir(filepath.Join(pruneDir, dir), 0444); mkErr != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, mkErr)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC)
+
+		output := captureOutput(func() {
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 2, false)
+		})
+
+		if err == nil {
+			t.Fatalf("Expected an error for failed moves, got nil")
+		}
+		// verbosity=2 prints "Moving X to Y... <raw error>", not the "Error moving" prefix
+		expectOutput(t, output, "Moving ")
+		unexpectOutput(t, output, "Error moving ")
 	})
 
 	t.Run("Test_pruneDirectory_Success", func(t *testing.T) {

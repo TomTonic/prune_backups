@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
+func getSizeAndLinkCount(filename string) (size, linkCount uint64, err error) {
 	// https://pkg.go.dev/golang.org/x/sys@v0.21.0/unix#Fsopen
 	// https://pkg.go.dev/golang.org/x/sys@v0.21.0/unix#Fstat
 	// https://pkg.go.dev/golang.org/x/sys@v0.21.0/unix#Stat_t Nlink
@@ -48,8 +48,8 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 		return 0, 0, fmt.Errorf("error opening file: %v", err)
 	}
 
-	fd_ptrtype := f.Fd()
-	fd := int(fd_ptrtype) // this cast seems to work currently
+	fdPtr := f.Fd()
+	fd := int(fdPtr) // this cast seems to work currently
 	// end alternative code
 
 	var stat unix.Stat_t
@@ -59,7 +59,7 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 	}
 
 	size = uint64(stat.Size)
-	link_count = uint64(stat.Nlink)
+	linkCount = uint64(stat.Nlink)
 
-	return size, link_count, err
+	return size, linkCount, err
 }
