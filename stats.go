@@ -43,13 +43,13 @@ var (
 	Stats_SupportedOS = runtime.GOOS == "linux" || runtime.GOOS == "windows" || runtime.GOOS == "darwin"
 )
 
-func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
-	result := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
+func DiskUsage(path string) (Infoblock, error) {
+	result := infoblock_internal{}
 	limit := (int64)(4000)
 	semaphore := NewSemaphore(limit)      // Limit the number of concurrent goroutines
 	debug.SetMaxThreads((int)(2 * limit)) // Ensure the thread limit is high enough
 
-	nevermind, err := os.Open(dir_name_or_file_name)
+	nevermind, err := os.Open(path)
 	defer func() {
 		if nevermind != nil {
 			_ = nevermind.Close()
@@ -59,14 +59,14 @@ func DiskUsage(dir_name_or_file_name string) (Infoblock, error) {
 		return result.ib, err
 	}
 
-	if ok, err := isDirectory(dir_name_or_file_name); ok {
-		duInternalDirectory(dir_name_or_file_name, &result, semaphore)
+	if ok, err := isDirectory(path); ok {
+		duInternalDirectory(path, &result, semaphore)
 	} else {
 		if err != nil {
-			errorMessage := fmt.Sprintf("Error identifying %v: %v\n", dir_name_or_file_name, err)
+			errorMessage := fmt.Sprintf("Error identifying %v: %v\n", path, err)
 			return result.ib, errors.New(errorMessage)
 		}
-		duInternalFile(dir_name_or_file_name, &result)
+		duInternalFile(path, &result)
 	}
 	return result.ib, nil
 }
@@ -80,7 +80,7 @@ func isDirectory(path string) (bool, error) {
 }
 
 func duInternalFile(fileName string, info *infoblock_internal) {
-	f_size, f_links, err := getSizeAndLinkCount(fileName)
+	fSize, fLinks, err := getSizeAndLinkCount(fileName)
 	if err != nil {
 		if errors.Is(err, fs.ErrPermission) {
 			(*info).ib.number_of_permission_errors_files += 1
@@ -89,25 +89,25 @@ func duInternalFile(fileName string, info *infoblock_internal) {
 		}
 		return
 	}
-	if f_links == 1 {
+	if fLinks == 1 {
 		(*info).ib.number_of_unlinked_files += 1
-		(*info).ib.size_of_unlinked_files += f_size
+		(*info).ib.size_of_unlinked_files += fSize
 	} else {
 		(*info).ib.number_of_linked_files += 1
-		(*info).ib.size_of_linked_files += f_size
+		(*info).ib.size_of_linked_files += fSize
 	}
 }
 
-func duInternalDirectory(directoryName string, globalinfo *infoblock_internal, semaphore *Semaphore) {
-	localinfo := infoblock_internal{Infoblock{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, sync.Mutex{}}
-	defer addAll(globalinfo, &localinfo) // this is synchronized
+func duInternalDirectory(directoryName string, globalInfo *infoblock_internal, semaphore *Semaphore) {
+	localInfo := infoblock_internal{}
+	defer addAll(globalInfo, &localInfo) // this is synchronized
 
 	files, err := readDirWithRetry(directoryName, 1000000, 2)
 	if err != nil {
 		if errors.Is(err, fs.ErrPermission) {
-			localinfo.ib.number_of_permission_errors_dirs += 1
+			localInfo.ib.number_of_permission_errors_dirs += 1
 		} else {
-			localinfo.ib.number_of_other_errors_dirs += 1
+			localInfo.ib.number_of_other_errors_dirs += 1
 		}
 		return
 	}
@@ -116,15 +116,15 @@ func duInternalDirectory(directoryName string, globalinfo *infoblock_internal, s
 	for _, file := range files {
 		fullPath := filepath.Join(directoryName, file.Name())
 		if file.Type().IsRegular() {
-			duInternalFile(fullPath, &localinfo)
+			duInternalFile(fullPath, &localInfo)
 		} else if file.Type().IsDir() {
 			subdirs = append(subdirs, fullPath)
 		} else {
-			countAccordingType(file.Type(), &localinfo)
+			countAccordingType(file.Type(), &localInfo)
 		}
 	}
 
-	localinfo.ib.number_of_subdirs += len(subdirs)
+	localInfo.ib.number_of_subdirs += len(subdirs)
 
 	// now descend into the directories
 	var wg sync.WaitGroup
@@ -135,7 +135,7 @@ func duInternalDirectory(directoryName string, globalinfo *infoblock_internal, s
 		go func(subdir string) {
 			defer func() { semaphore.Release() }() // Release the token when done
 			defer wg.Done()
-			duInternalDirectory(subdir, globalinfo, semaphore)
+			duInternalDirectory(subdir, globalInfo, semaphore)
 		}(subdir)
 	}
 
@@ -143,25 +143,25 @@ func duInternalDirectory(directoryName string, globalinfo *infoblock_internal, s
 
 }
 
-func addAll(globalinfo, localinfo *infoblock_internal) {
-	(*globalinfo).mutex.Lock()
-	(*globalinfo).ib.size_of_unlinked_files += (*localinfo).ib.size_of_unlinked_files
-	(*globalinfo).ib.size_of_linked_files += (*localinfo).ib.size_of_linked_files
-	(*globalinfo).ib.number_of_unlinked_files += (*localinfo).ib.number_of_unlinked_files
-	(*globalinfo).ib.number_of_linked_files += (*localinfo).ib.number_of_linked_files
-	(*globalinfo).ib.number_of_subdirs += (*localinfo).ib.number_of_subdirs
-	(*globalinfo).ib.number_of_permission_errors_files += (*localinfo).ib.number_of_permission_errors_files
-	(*globalinfo).ib.number_of_permission_errors_dirs += (*localinfo).ib.number_of_permission_errors_dirs
-	(*globalinfo).ib.number_of_other_errors_files += (*localinfo).ib.number_of_other_errors_files
-	(*globalinfo).ib.number_of_other_errors_dirs += (*localinfo).ib.number_of_other_errors_dirs
-	(*globalinfo).ib.nr_apnd += (*localinfo).ib.nr_apnd
-	(*globalinfo).ib.nr_excl += (*localinfo).ib.nr_excl
-	(*globalinfo).ib.nr_tmp += (*localinfo).ib.nr_tmp
-	(*globalinfo).ib.nr_sym += (*localinfo).ib.nr_sym
-	(*globalinfo).ib.nr_dev += (*localinfo).ib.nr_dev
-	(*globalinfo).ib.nr_pipe += (*localinfo).ib.nr_pipe
-	(*globalinfo).ib.nr_sock += (*localinfo).ib.nr_sock
-	(*globalinfo).mutex.Unlock()
+func addAll(globalInfo, localInfo *infoblock_internal) {
+	globalInfo.mutex.Lock()
+	globalInfo.ib.size_of_unlinked_files += localInfo.ib.size_of_unlinked_files
+	globalInfo.ib.size_of_linked_files += localInfo.ib.size_of_linked_files
+	globalInfo.ib.number_of_unlinked_files += localInfo.ib.number_of_unlinked_files
+	globalInfo.ib.number_of_linked_files += localInfo.ib.number_of_linked_files
+	globalInfo.ib.number_of_subdirs += localInfo.ib.number_of_subdirs
+	globalInfo.ib.number_of_permission_errors_files += localInfo.ib.number_of_permission_errors_files
+	globalInfo.ib.number_of_permission_errors_dirs += localInfo.ib.number_of_permission_errors_dirs
+	globalInfo.ib.number_of_other_errors_files += localInfo.ib.number_of_other_errors_files
+	globalInfo.ib.number_of_other_errors_dirs += localInfo.ib.number_of_other_errors_dirs
+	globalInfo.ib.nr_apnd += localInfo.ib.nr_apnd
+	globalInfo.ib.nr_excl += localInfo.ib.nr_excl
+	globalInfo.ib.nr_tmp += localInfo.ib.nr_tmp
+	globalInfo.ib.nr_sym += localInfo.ib.nr_sym
+	globalInfo.ib.nr_dev += localInfo.ib.nr_dev
+	globalInfo.ib.nr_pipe += localInfo.ib.nr_pipe
+	globalInfo.ib.nr_sock += localInfo.ib.nr_sock
+	globalInfo.mutex.Unlock()
 }
 
 func countAccordingType(mode fs.FileMode, info *infoblock_internal) {
@@ -193,9 +193,9 @@ func countAccordingType(mode fs.FileMode, info *infoblock_internal) {
 	}
 }
 
-func readDirWithRetry(directoryname string, retries, maxwait_seconds int) ([]fs.DirEntry, error) {
+func readDirWithRetry(directoryName string, retries, maxWaitSeconds int) ([]fs.DirEntry, error) {
 	for range retries {
-		direntries, err := os.ReadDir(directoryname)
+		direntries, err := os.ReadDir(directoryName)
 		if err != nil {
 			pathErr, ok := err.(*os.PathError)
 			if !ok {
@@ -203,7 +203,7 @@ func readDirWithRetry(directoryname string, retries, maxwait_seconds int) ([]fs.
 			}
 			if pathErr.Err.Error() == "too many open files" {
 				// Wait a random time before retrying
-				rnd := rand.IntN(maxwait_seconds * 1000)
+				rnd := rand.IntN(maxWaitSeconds * 1000)
 				time.Sleep(time.Duration(200+rnd) * time.Millisecond) // wait at least 200ms
 				continue
 			}
@@ -214,10 +214,10 @@ func readDirWithRetry(directoryname string, retries, maxwait_seconds int) ([]fs.
 		}
 		return direntries, nil
 	}
-	return nil, fmt.Errorf("failed to read directory after %v retries: %s", retries, directoryname)
+	return nil, fmt.Errorf("failed to read directory after %v retries: %s", retries, directoryName)
 }
 
-func openFileWithRetry(filename string, retries, maxwait_seconds int) (*os.File, error) {
+func openFileWithRetry(filename string, retries, maxWaitSeconds int) (*os.File, error) {
 	for range retries {
 		file, err := os.Open(filename)
 		if err != nil {
@@ -227,7 +227,7 @@ func openFileWithRetry(filename string, retries, maxwait_seconds int) (*os.File,
 			}
 			if pathErr.Err.Error() == "too many open files" {
 				// Wait a random time before retrying
-				rnd := rand.IntN(maxwait_seconds * 1000)
+				rnd := rand.IntN(maxWaitSeconds * 1000)
 				time.Sleep(time.Duration(200+rnd) * time.Millisecond) // wait at least 200ms
 				continue
 			}

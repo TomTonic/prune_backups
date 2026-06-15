@@ -56,17 +56,17 @@ func Test_getAllButFirstMatchingPrefix(t *testing.T) {
 }
 
 func Test_DateAdd(t *testing.T) {
-	test_time := time.Date(2023, 3, 29, 20, 34, 58, 0, time.UTC)
+	testTime := time.Date(2023, 3, 29, 20, 34, 58, 0, time.UTC)
 	expect := time.Date(2023, 3, 1, 20, 34, 58, 0, time.UTC)
-	got := test_time.AddDate(0, -1, 0)
+	got := testTime.AddDate(0, -1, 0)
 
 	if got != expect {
 		t.Errorf("DateAdd-Test: expected=%v, got=%v", expect, got)
 	}
 
-	test_time2 := time.Date(2023, 5, 31, 20, 34, 58, 0, time.UTC)
+	testTime2 := time.Date(2023, 5, 31, 20, 34, 58, 0, time.UTC)
 	expect2 := time.Date(2023, 5, 1, 20, 34, 58, 0, time.UTC)
-	got2 := test_time2.AddDate(0, -1, 0)
+	got2 := testTime2.AddDate(0, -1, 0)
 
 	if got2 != expect2 {
 		t.Errorf("DateAdd-Test: expected=%v, got=%v", expect2, got2)
@@ -262,7 +262,7 @@ func Test_getUltimo(t *testing.T) {
 
 func Test_getAnyMatchingAnyPrefixes(t *testing.T) {
 	tests := []struct {
-		search_in []string
+		searchIn []string
 		prefixes  []string
 		want      bool
 	}{
@@ -274,8 +274,8 @@ func Test_getAnyMatchingAnyPrefixes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := getAnyMatchingAnyPrefixes(tt.search_in, tt.prefixes); got != tt.want {
-			t.Errorf("getAnyMatchingAnyPrefixes(%v, %v) = %v, want %v", tt.search_in, tt.prefixes, got, tt.want)
+		if got := getAnyMatchingAnyPrefixes(tt.searchIn, tt.prefixes); got != tt.want {
+			t.Errorf("getAnyMatchingAnyPrefixes(%v, %v) = %v, want %v", tt.searchIn, tt.prefixes, got, tt.want)
 		}
 	}
 }

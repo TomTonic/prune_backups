@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
+func getSizeAndLinkCount(filename string) (size, linkCount uint64, err error) {
 	// see https://pkg.go.dev/golang.org/x/sys@v0.21.0/windows#pkg-functions
 	// GetFileInformationByHandle -> https://pkg.go.dev/golang.org/x/sys@v0.21.0/windows#ByHandleFileInformation
 	// FileSizeHigh und FileSizeLow
@@ -38,7 +38,7 @@ func getSizeAndLinkCount(filename string) (size, link_count uint64, err error) {
 	}
 
 	size = uint64(fileInfo.FileSizeHigh)<<32 | uint64(fileInfo.FileSizeLow)
-	link_count = uint64(fileInfo.NumberOfLinks)
+	linkCount = uint64(fileInfo.NumberOfLinks)
 
 	return
 }

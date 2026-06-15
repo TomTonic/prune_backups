@@ -67,7 +67,7 @@ func main() {
 	err := ctx.Run(&cli)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(-1)
+		os.Exit(1)
 	}
 }
 
@@ -91,16 +91,16 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 	// Sort in descending order - caution: this is important for the algorithm!
 	sort.Sort(sort.Reverse(sort.StringSlice(dirs)))
 
-	var to_delete []string // in this array we will collect all directories that we will move to the to_delete-directory
+	var toDelete []string // in this array we will collect all directories that we will move to the to_delete-directory
 
 	filters := getAllFilters(now, dirs)
 	for _, filter := range filters {
-		add_to_delete := getAllButFirstMatchingPrefix(dirs, filter)
-		to_delete = append(to_delete, add_to_delete...)
+		addToDelete := getAllButFirstMatchingPrefix(dirs, filter)
+		toDelete = append(toDelete, addToDelete...)
 	}
 
-	cleaup_others := getDateDirectoriesNotMatchingAnyPrefix(dirs, filters, verbosity)
-	to_delete = append(to_delete, cleaup_others...)
+	cleanupOthers := getDateDirectoriesNotMatchingAnyPrefix(dirs, filters, verbosity)
+	toDelete = append(toDelete, cleanupOthers...)
 
 	delPath := filepath.Join(pruneDirName, toDeleteDirName)
 	err2 := os.MkdirAll(delPath, 0755)
@@ -108,7 +108,7 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		errorMessage := fmt.Sprintf("Error creating directory \"%s\": %s", delPath, err2)
 		if verbosity > 0 {
 			movedDirs := "\nI would have moved the following directories there:\n"
-			for _, dir := range to_delete {
+			for _, dir := range toDelete {
 				movedDirs += fmt.Sprintf(" - %s\n", dir)
 			}
 			errorMessage += movedDirs
@@ -116,9 +116,9 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 		return errors.New(errorMessage)
 	}
 
-	/* now we have collected all directory names that need to be moved in to_delete. next we will create the target directory and actually move them */
-	var successful_move_counter = 0
-	for _, dirname := range to_delete {
+	/* now we have collected all directory names that need to be moved in toDelete. next we will create the target directory and actually move them */
+	var successfulMoveCounter = 0
+	for _, dirname := range toDelete {
 		fromPath := filepath.Join(pruneDirName, dirname)
 		toPath := filepath.Join(delPath, dirname)
 		if verbosity > 1 {
@@ -135,11 +135,11 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 			if verbosity > 1 {
 				fmt.Println("done.")
 			}
-			successful_move_counter++
+			successfulMoveCounter++
 		}
 	}
 	if verbosity > 0 {
-		fmt.Println("I moved", successful_move_counter, "directories to", delPath)
+		fmt.Println("I moved", successfulMoveCounter, "directories to", delPath)
 	}
 	if showStats {
 		return showStatsOf(delPath)
@@ -193,107 +193,107 @@ func printNiceBytes(prefix string, val uint64) {
 	}
 }
 
-func getAllFilters(start_time time.Time, existingDirs []string) []string {
+func getAllFilters(startTime time.Time, existingDirs []string) []string {
 	var result = []string{}
 
 	// append hourly filters
 
-	result = append(result, getFiltersForHourlys(start_time, existingDirs)...)
+	result = append(result, getFiltersForHourlies(startTime, existingDirs)...)
 
 	// append daily filters
 
-	filters_for_dailys, first_month_for_the_monthlys := getFiltersForDailys(start_time.AddDate(0, 0, -2), existingDirs)
-	result = append(result, filters_for_dailys...)
+	filtersForDailies, firstMonthForMonthlies := getFiltersForDailies(startTime.AddDate(0, 0, -2), existingDirs)
+	result = append(result, filtersForDailies...)
 
 	// append monthly filters
 
-	result = append(result, getFiltersForMonthlys(first_month_for_the_monthlys, 119)...)
+	result = append(result, getFiltersForMonthlies(firstMonthForMonthlies, 119)...)
 
 	return result
 }
 
-func getFiltersForHourlys(start_time time.Time, existingDirs []string) []string {
+func getFiltersForHourlies(startTime time.Time, existingDirs []string) []string {
 	var result = []string{}
-	filters_today := getFiltersForToday(start_time)
-	result = append(result, filters_today...)
-	remaining_hourlys := 24 - len(filters_today)
-	filters_yesterday := getFiltersForYesterday(start_time, remaining_hourlys, existingDirs)
-	result = append(result, filters_yesterday...)
+	filtersToday := getFiltersForToday(startTime)
+	result = append(result, filtersToday...)
+	remainingHourlies := 24 - len(filtersToday)
+	filtersYesterday := getFiltersForYesterday(startTime, remainingHourlies, existingDirs)
+	result = append(result, filtersYesterday...)
 	return result
 }
 
-func getFiltersForToday(current_time time.Time) []string {
+func getFiltersForToday(currentTime time.Time) []string {
 	var result = []string{}
 
-	day := current_time.Day()
+	day := currentTime.Day()
 
-	for current_time.Day() == day {
+	for currentTime.Day() == day {
 		// Format the time in the format YYYY-MM-DD_hh
-		prefix := current_time.Format("2006-01-02_15") // caution, this is a magic number in go!
+		prefix := currentTime.Format("2006-01-02_15") // caution, this is a magic number in go!
 		result = append(result, prefix)
 
 		// Subtract one hour from the current timestamp
-		current_time = current_time.Add(-1 * time.Hour)
+		currentTime = currentTime.Add(-1 * time.Hour)
 	}
 	return result
 }
 
-func getFiltersForYesterday(current_time time.Time, remaining_hourly_backups int, allDirs []string) []string {
+func getFiltersForYesterday(currentTime time.Time, remainingHourlyBackups int, allDirs []string) []string {
 	var hourlyFilters = []string{}
 
-	yesterday := current_time.Add(-24 * time.Hour)
+	yesterday := currentTime.Add(-24 * time.Hour)
 
 	var year = yesterday.Year()
 	var month = (int)(yesterday.Month())
 	var day = yesterday.Day()
-	yester_date_str := toDateStr3(year, month, day)
+	yesterDateStr := toDateStr3(year, month, day)
 
-	for i := range remaining_hourly_backups {
-		prefix := yester_date_str + "_" + twoDigit(23-i)
+	for i := range remainingHourlyBackups {
+		prefix := yesterDateStr + "_" + twoDigit(23-i)
 		hourlyFilters = append(hourlyFilters, prefix)
 	}
 
-	any_matches := getAnyMatchingAnyPrefixes(allDirs, hourlyFilters) // check what is actually there - the filter for yesterday will depend on it
+	anyMatches := getAnyMatchingAnyPrefixes(allDirs, hourlyFilters) // check what is actually there - the filter for yesterday will depend on it
 
-	if any_matches {
+	if anyMatches {
 		// we found some hourly backup folders for yesterday, so return the filter for the hourly backups for yesterday, i.e. some YYYY-MM-DD_HH filters
 		return hourlyFilters
 	} else {
 		// we found no hourly backup folders for yesterday, so return the filter for the latest backup for yesterday, i.e. one YYYY-MM-DD filter
-		return []string{yester_date_str}
+		return []string{yesterDateStr}
 	}
 }
 
-func getFiltersForDailys(start_date time.Time, existingDirs []string) ([]string, time.Time) {
+func getFiltersForDailies(startDate time.Time, existingDirs []string) ([]string, time.Time) {
 	var result = []string{}
-	var first_month_for_the_monthlys time.Time
-	M1 := get15thOfMonthBefore(start_date)
+	var firstMonthForMonthlies time.Time
+	M1 := get15thOfMonthBefore(startDate)
 	M2 := get15thOfMonthBefore(M1)
 	M3 := get15thOfMonthBefore(M2)
-	daysM0 := daysInMonth(start_date.Year(), start_date.Month())
+	daysM0 := daysInMonth(startDate.Year(), startDate.Month())
 	daysM1 := daysInMonth(M1.Year(), M1.Month())
 
-	switch start_date.Day() {
+	switch startDate.Day() {
 	case 1:
 		{
 			switch daysM1 {
 			case 28:
 				// The 30 days affect THREE months M0, M1, and M2 and M2 is NOT completely covered with daily backups.
-				// pin 29 normal dailys and test 1 daily in in M2. continue with M3
-				result = append(result, getFiltersForDailysSimple(start_date, 29)...)
-				result = append(result, getFiltersForDailysOrForMonth(getUltimo(M2.Year(), M2.Month()), 1, existingDirs)...)
-				first_month_for_the_monthlys = M3
+				// pin 29 normal dailies and test 1 daily in M2. continue with M3
+				result = append(result, getFiltersForDailiesSimple(startDate, 29)...)
+				result = append(result, getFiltersForDailiesOrForMonth(getUltimo(M2.Year(), M2.Month()), 1, existingDirs)...)
+				firstMonthForMonthlies = M3
 			case 29:
 				// The 30 days affect TWO months M0 and M1 and M1 is completely covered with daily backups.
-				// pin 30 normal dailys and test nothing. continue with M2
-				result = append(result, getFiltersForDailysSimple(start_date, 30)...)
-				first_month_for_the_monthlys = M2
+				// pin 30 normal dailies and test nothing. continue with M2
+				result = append(result, getFiltersForDailiesSimple(startDate, 30)...)
+				firstMonthForMonthlies = M2
 			case 30, 31:
 				// The 30 days affect TWO months M0 and M1 and M1 is NOT completely covered with daily backups.
-				// pin 1 normal daily and test 29 dailys in in M1. continue with M2
-				result = append(result, getFiltersForDailysSimple(start_date, 1)...)
-				result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 29, existingDirs)...)
-				first_month_for_the_monthlys = M2
+				// pin 1 normal daily and test 29 dailies in M1. continue with M2
+				result = append(result, getFiltersForDailiesSimple(startDate, 1)...)
+				result = append(result, getFiltersForDailiesOrForMonth(getUltimo(M1.Year(), M1.Month()), 29, existingDirs)...)
+				firstMonthForMonthlies = M2
 			}
 		}
 	case 2:
@@ -301,15 +301,15 @@ func getFiltersForDailys(start_date time.Time, existingDirs []string) ([]string,
 			switch daysM1 {
 			case 28:
 				// The 30 days affect TWO months M0 and M1 and M1 is completely covered with daily backups.
-				// pin 30 normal dailys and test nothing. continue with M2
-				result = append(result, getFiltersForDailysSimple(start_date, 30)...)
-				first_month_for_the_monthlys = M2
+				// pin 30 normal dailies and test nothing. continue with M2
+				result = append(result, getFiltersForDailiesSimple(startDate, 30)...)
+				firstMonthForMonthlies = M2
 			case 29, 30, 31:
 				// The 30 days affect TWO months M0 and M1 and M1 is NOT completely covered with daily backups.
-				// pin 2 normal dailys and test 28 dailys in in M1. continue with M2
-				result = append(result, getFiltersForDailysSimple(start_date, 2)...)
-				result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 28, existingDirs)...)
-				first_month_for_the_monthlys = M2
+				// pin 2 normal dailies and test 28 dailies in M1. continue with M2
+				result = append(result, getFiltersForDailiesSimple(startDate, 2)...)
+				result = append(result, getFiltersForDailiesOrForMonth(getUltimo(M1.Year(), M1.Month()), 28, existingDirs)...)
+				firstMonthForMonthlies = M2
 			}
 		}
 	case 30:
@@ -319,15 +319,15 @@ func getFiltersForDailys(start_date time.Time, existingDirs []string) ([]string,
 			// impossible in a month with a 30st day if daysInMonth() works correctly
 			case 30:
 				// The 30 days affect ONE month M0 and M0 is completely covered with daily backups.
-				// pin 30 normal dailys and test nothing. continue with M1
-				result = append(result, getFiltersForDailysSimple(start_date, 30)...)
-				first_month_for_the_monthlys = M1
+				// pin 30 normal dailies and test nothing. continue with M1
+				result = append(result, getFiltersForDailiesSimple(startDate, 30)...)
+				firstMonthForMonthlies = M1
 			case 31:
 				// The 30 days affect ONE month M0 and (the rest of) M0 is completely covered with daily backups.
 				// Please note: the 31. will already be covered by the hourly backup filter logic, so the 30 daily filters will indeed cover the rest of the month
-				// pin 30 normal dailys and test nothing. continue with M1
-				result = append(result, getFiltersForDailysSimple(start_date, 30)...)
-				first_month_for_the_monthlys = M1
+				// pin 30 normal dailies and test nothing. continue with M1
+				result = append(result, getFiltersForDailiesSimple(startDate, 30)...)
+				firstMonthForMonthlies = M1
 			}
 		}
 	case 31:
@@ -337,46 +337,46 @@ func getFiltersForDailys(start_date time.Time, existingDirs []string) ([]string,
 			// impossible in a month with a 31st day if daysInMonth() works correctly
 			case 31:
 				// The 30 days affect ONE month M0 and M0 is NOT completely covered with daily backups.
-				// pin 0 normal dailys and test 30 dailys in in M0. continue with M1
-				result = append(result, getFiltersForDailysOrForMonth(start_date, 30, existingDirs)...)
-				first_month_for_the_monthlys = M1
+				// pin 0 normal dailies and test 30 dailies in M0. continue with M1
+				result = append(result, getFiltersForDailiesOrForMonth(startDate, 30, existingDirs)...)
+				firstMonthForMonthlies = M1
 			}
 		}
 	default:
 		// The 30 days affect TWO months M0 and M1 and M1 is NOT completely covered with daily backups.
-		// pin daysM0 normal dailys and test 30-daysM0 dailys in in M1. continue with M2
-		result = append(result, getFiltersForDailysSimple(start_date, start_date.Day())...)
-		result = append(result, getFiltersForDailysOrForMonth(getUltimo(M1.Year(), M1.Month()), 30-start_date.Day(), existingDirs)...)
-		first_month_for_the_monthlys = M2
+		// pin daysM0 normal dailies and test 30-daysM0 dailies in M1. continue with M2
+		result = append(result, getFiltersForDailiesSimple(startDate, startDate.Day())...)
+		result = append(result, getFiltersForDailiesOrForMonth(getUltimo(M1.Year(), M1.Month()), 30-startDate.Day(), existingDirs)...)
+		firstMonthForMonthlies = M2
 	}
-	return result, first_month_for_the_monthlys
+	return result, firstMonthForMonthlies
 }
 
-func getFiltersForDailysSimple(start_date time.Time, count int) []string {
+func getFiltersForDailiesSimple(startDate time.Time, count int) []string {
 	var result = []string{}
 	for range count {
 		// Format the time in the format YYYY-MM-DD
-		prefix := start_date.Format("2006-01-02")
+		prefix := startDate.Format("2006-01-02")
 		result = append(result, prefix)
-		start_date = start_date.AddDate(0, 0, -1)
+		startDate = startDate.AddDate(0, 0, -1)
 	}
 	return result
 }
 
-func getFiltersForDailysOrForMonth(start_date time.Time, remaining int, existingDirs []string) []string {
-	filters_for_dailys := getFiltersForDailysSimple(start_date, remaining)
-	any_matches := getAnyMatchingAnyPrefixes(existingDirs, filters_for_dailys) // check what is actually there
-	if any_matches {
+func getFiltersForDailiesOrForMonth(startDate time.Time, remaining int, existingDirs []string) []string {
+	filtersForDailies := getFiltersForDailiesSimple(startDate, remaining)
+	anyMatches := getAnyMatchingAnyPrefixes(existingDirs, filtersForDailies) // check what is actually there
+	if anyMatches {
 		// we found some daily backup folders, so return the filter for the daily backups, i.e. some YYYY-MM-DD filters
-		return filters_for_dailys
+		return filtersForDailies
 	} else {
 		// we found no daily backup folders within the specified range, so return a filter for month, i.e. one YYYY-MM filter
-		filter := toDateStr(start_date.Year(), int(start_date.Month()))
+		filter := toDateStr(startDate.Year(), int(startDate.Month()))
 		return []string{filter}
 	}
 }
 
-func getFiltersForMonthlys(current time.Time, count int) []string {
+func getFiltersForMonthlies(current time.Time, count int) []string {
 	var result = []string{}
 	// don't use AddDate(0, -1, 0) as this function does not work as expected when we're on a March, 29th in a non-leap-year, e.g.
 	// use simpler and more robust approach, as from now on we don't need (leap-) days arithmetics anyhow
@@ -396,14 +396,14 @@ func getDateDirectoriesNotMatchingAnyPrefix(allDirs []string, prefixes []string,
 	r, _ := regexp.Compile(`^[\d]{4}\-[\d]{2}\-[\d]{2}.*`)
 	for _, dir := range allDirs {
 		if r.Match([]byte(dir)) {
-			found_match := false
+			foundMatch := false
 			for _, prefix := range prefixes {
 				if strings.HasPrefix(dir, prefix) {
-					found_match = true
+					foundMatch = true
 					break
 				}
 			}
-			if !found_match {
+			if !foundMatch {
 				result = append(result, dir)
 			}
 		} else {
