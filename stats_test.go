@@ -132,6 +132,24 @@ func Test_du0(t *testing.T) {
 	}
 }
 
+func Test_DiskUsage_OnFile(t *testing.T) {
+	// DiskUsage is normally called with a directory. This test exercises the
+	// duInternalFile branch that is taken when a plain file path is passed.
+	info, err := DiskUsage("go.mod")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	totalFiles := info.number_of_unlinked_files + info.number_of_linked_files
+	if totalFiles != 1 {
+		t.Errorf("expected exactly 1 file, got %d (unlinked: %d, linked: %d)",
+			totalFiles, info.number_of_unlinked_files, info.number_of_linked_files)
+	}
+	totalSize := info.size_of_unlinked_files + info.size_of_linked_files
+	if totalSize == 0 {
+		t.Errorf("expected non-zero file size for go.mod")
+	}
+}
+
 func Test_du1(t *testing.T) {
 	tests := []struct {
 		name                     string

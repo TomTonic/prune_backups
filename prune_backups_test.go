@@ -152,6 +152,34 @@ func TestCLI_PruneCommandStatsNotSupported(t *testing.T) {
 
 }
 
+func TestCLI_StatsCommandStatsNotSupported(t *testing.T) {
+	prev := Stats_SupportedOS
+	Stats_SupportedOS = false
+	defer func() {
+		Stats_SupportedOS = prev
+	}()
+
+	cli := CLI{}
+	parser := kong.Must(&cli,
+		kong.Name("prune_backups"),
+	)
+
+	args := []string{"stats", "./testdata/"}
+	ctx, err := parser.Parse(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err = ctx.Run(&cli)
+	if err == nil {
+		t.Fatalf("expected an error!")
+	}
+	expectedText := "stats command not supported for your OS"
+	if !strings.Contains(err.Error(), expectedText) {
+		t.Fatalf("expected %q, got %q", expectedText, err)
+	}
+}
+
 func Test_pruneDirectoryHourlyForFourMonths(t *testing.T) {
 	testTime_gen := time.Date(2024, 6, 17, 9, 49, 33, 0, time.UTC)
 	testTime_prune := time.Date(2024, 6, 17, 9, 54, 21, 0, time.UTC)
@@ -1177,6 +1205,122 @@ func Test_pruneDirectory(t *testing.T) {
 		if !strings.Contains(output, "Error moving ") {
 			t.Fatalf("Expected output to contain \"Error moving \", got %q", output)
 		}
+	})
+
+	t.Run("Test_pruneDirectory_ErrorCreatingDirectory_Verbose", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+		}
+
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		// Create date-formatted dirs so toDelete is non-empty when mkdir fails
+		for _, dir := range []string{"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-16_23-49"} {
+			if mkErr := os.Mkdir(filepath.Join(pruneDir, dir), 0755); mkErr != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, mkErr)
+			}
+		}
+
+		err = os.Chmod(pruneDir, 0444)
+		if err != nil {
+			t.Fatalf("Failed to set directory permissions: %v", err)
+		}
+		defer func() { _ = os.Chmod(pruneDir, 0755) }() // restore so t.TempDir() can clean up
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC)
+		err = pruneDirectory(pruneDir, relativeTime, "to_delete", 1, false)
+
+		if err == nil {
+			t.Fatalf("Expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "Error creating directory") {
+			t.Fatalf("Expected error to contain %q, got %q", "Error creating directory", err.Error())
+		}
+		if !strings.Contains(err.Error(), "I would have moved the following directories there") {
+			t.Fatalf("Expected error to list directories, got %q", err.Error())
+		}
+		if !strings.Contains(err.Error(), "2024-06-17_08-49") {
+			t.Fatalf("Expected error to name specific directories, got %q", err.Error())
+		}
+	})
+
+	t.Run("Test_pruneDirectory_ErrorMovingWithStats", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+		}
+		if !Stats_SupportedOS {
+			t.Skip("stats not supported on this OS")
+		}
+
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		for _, dir := range []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+		} {
+			if mkErr := os.Mkdir(filepath.Join(pruneDir, dir), 0444); mkErr != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, mkErr)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC)
+
+		// Suppress stats output; we only care about the returned error
+		_ = captureOutput(func() {
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 0, true)
+		})
+
+		if err == nil {
+			t.Fatalf("Expected an error for failed moves, got nil")
+		}
+		if !strings.Contains(err.Error(), "could not be moved") {
+			t.Fatalf("Expected error to mention failed moves, got %q", err.Error())
+		}
+	})
+
+	t.Run("Test_pruneDirectory_ErrorMovingDirectory_Verbose", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("This test does not work on Windows")
+		}
+
+		testDir := t.TempDir()
+		pruneDir := filepath.Join(testDir, "prune")
+		err := os.Mkdir(pruneDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create prune directory: %v", err)
+		}
+
+		for _, dir := range []string{
+			"2024-06-17_09-49", "2024-06-17_08-49", "2024-06-17_07-49",
+			"2024-06-16_23-49", "2024-06-15_23-49", "2024-05-31_23-49",
+		} {
+			if mkErr := os.Mkdir(filepath.Join(pruneDir, dir), 0444); mkErr != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, mkErr)
+			}
+		}
+
+		relativeTime := time.Date(2025, 2, 15, 22, 45, 0, 0, time.UTC)
+
+		output := captureOutput(func() {
+			err = pruneDirectory(pruneDir, relativeTime, "to_delete", 2, false)
+		})
+
+		if err == nil {
+			t.Fatalf("Expected an error for failed moves, got nil")
+		}
+		// verbosity=2 prints "Moving X to Y... <raw error>", not the "Error moving" prefix
+		expectOutput(t, output, "Moving ")
+		unexpectOutput(t, output, "Error moving ")
 	})
 
 	t.Run("Test_pruneDirectory_Success", func(t *testing.T) {
