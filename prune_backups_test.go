@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -303,7 +304,7 @@ func generateHourlyTestDirectories(t *testing.T, testTime time.Time, number int)
 		t.Fatal("Error creating temporary directory: ", err)
 	}
 
-	for i := 0; i < number; i++ {
+	for i := range number {
 		next := testTime.Add(time.Duration(-i) * time.Hour)
 		subDir := next.Format("2006-01-02_15-04")
 		fullPath := filepath.Join(dir, subDir)
@@ -351,14 +352,14 @@ func Test_getFiltersForDailies(t *testing.T) {
 }
 
 var testsFor30Dailies = []struct {
-	name          string
+	name         string
 	testTime     time.Time
 	nextMonth    time.Time
 	existingDirs []string
 	filterDates  []string
 }{
 	{
-		name:       "Test Case 1a - middle of the month, all existing",
+		name:      "Test Case 1a - middle of the month, all existing",
 		testTime:  time.Date(2014, 7, 15, 9, 54, 21, 0, time.UTC),
 		nextMonth: time.Date(2014, 5, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{
@@ -381,7 +382,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:          "Test Case 1b - middle of the month, none existing",
+		name:         "Test Case 1b - middle of the month, none existing",
 		testTime:     time.Date(2014, 7, 15, 9, 54, 21, 0, time.UTC),
 		nextMonth:    time.Date(2014, 5, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{},
@@ -395,7 +396,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:       "Test Case 2a - 1st of the month, prev 31 days, all existing",
+		name:      "Test Case 2a - 1st of the month, prev 31 days, all existing",
 		testTime:  time.Date(2022, 8, 1, 23, 54, 21, 0, time.UTC),
 		nextMonth: time.Date(2022, 6, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{
@@ -415,7 +416,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:          "Test Case 2b - 1st of the month, prev 31 days, none existing",
+		name:         "Test Case 2b - 1st of the month, prev 31 days, none existing",
 		testTime:     time.Date(2022, 8, 1, 23, 54, 21, 0, time.UTC),
 		nextMonth:    time.Date(2022, 6, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{},
@@ -426,7 +427,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:       "Test Case 3a - 1st of the month, prev 29 days, all existing",
+		name:      "Test Case 3a - 1st of the month, prev 29 days, all existing",
 		testTime:  time.Date(2024, 3, 1, 23, 54, 21, 0, time.UTC),
 		nextMonth: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{
@@ -446,7 +447,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:          "Test Case 3a - 1st of the month, prev 29 days, none existing",
+		name:         "Test Case 3a - 1st of the month, prev 29 days, none existing",
 		testTime:     time.Date(2024, 3, 1, 23, 54, 21, 0, time.UTC),
 		nextMonth:    time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{},
@@ -459,7 +460,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:       "Test Case 4a - 1st of the month, prev 28 days (3 months coverage), all existing",
+		name:      "Test Case 4a - 1st of the month, prev 28 days (3 months coverage), all existing",
 		testTime:  time.Date(2023, 3, 1, 23, 54, 21, 0, time.UTC),
 		nextMonth: time.Date(2022, 12, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{
@@ -479,7 +480,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:          "Test Case 4a - 1st of the month, prev 28 days (3 months coverage), none existing",
+		name:         "Test Case 4a - 1st of the month, prev 28 days (3 months coverage), none existing",
 		testTime:     time.Date(2023, 3, 1, 23, 54, 21, 0, time.UTC),
 		nextMonth:    time.Date(2022, 12, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{},
@@ -494,7 +495,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:       "Test Case 5a - 30th of the month, has >30 days (only 1 month coverage), all existing",
+		name:      "Test Case 5a - 30th of the month, has >30 days (only 1 month coverage), all existing",
 		testTime:  time.Date(2024, 4, 30, 23, 54, 21, 0, time.UTC),
 		nextMonth: time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{
@@ -514,7 +515,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:          "Test Case 5b - 30th of the month, has 30 days (only 1 month coverage), none existing",
+		name:         "Test Case 5b - 30th of the month, has 30 days (only 1 month coverage), none existing",
 		testTime:     time.Date(2024, 4, 30, 23, 54, 21, 0, time.UTC),
 		nextMonth:    time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{},
@@ -527,7 +528,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:          "Test Case 5c - 30th of the month, has 31 days (only 1 month coverage), none existing",
+		name:         "Test Case 5c - 30th of the month, has 31 days (only 1 month coverage), none existing",
 		testTime:     time.Date(2024, 5, 30, 23, 54, 21, 0, time.UTC),
 		nextMonth:    time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{},
@@ -540,7 +541,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:       "Test Case 6a - 31st of the month, all existing",
+		name:      "Test Case 6a - 31st of the month, all existing",
 		testTime:  time.Date(2024, 5, 31, 23, 54, 21, 0, time.UTC),
 		nextMonth: time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{
@@ -560,7 +561,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:          "Test Case 6b - 31st of the month, none existing",
+		name:         "Test Case 6b - 31st of the month, none existing",
 		testTime:     time.Date(2024, 5, 31, 23, 54, 21, 0, time.UTC),
 		nextMonth:    time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{},
@@ -569,7 +570,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:       "Test Case 7a - 2nd of the month, prev 28 days, all existing",
+		name:      "Test Case 7a - 2nd of the month, prev 28 days, all existing",
 		testTime:  time.Date(2023, 3, 2, 20, 34, 58, 0, time.UTC),
 		nextMonth: time.Date(2023, 1, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{
@@ -589,7 +590,7 @@ var testsFor30Dailies = []struct {
 		},
 	},
 	{
-		name:       "Test Case 7b - 2nd of the month, prev 29 days, all existing",
+		name:      "Test Case 7b - 2nd of the month, prev 29 days, all existing",
 		testTime:  time.Date(2024, 3, 2, 23, 54, 21, 0, time.UTC),
 		nextMonth: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
 		existingDirs: []string{
@@ -650,16 +651,16 @@ func Test_getFiltersForYesterday(t *testing.T) {
 }
 
 var testsForHourlies = []struct {
-	name                   string
-	testTime              time.Time
-	existingDirs          []string
+	name                 string
+	testTime             time.Time
+	existingDirs         []string
 	extraDailyNeeded     bool
-	extraDaily            string
+	extraDaily           string
 	filterDatesToday     []string
 	filterDatesYesterday []string
 }{
 	{
-		name:      "Test Case 1 - all and more, with Feb in leap year",
+		name:     "Test Case 1 - all and more, with Feb in leap year",
 		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
 		existingDirs: []string{
 			"2024-03-01_20-13", "2024-03-01_19-13", "2024-03-01_18-13", "2024-03-01_17-13", "2024-03-01_16-13", "2024-03-01_15-13" /* extra: */, "2024-03-01_15-03",
@@ -670,7 +671,7 @@ var testsForHourlies = []struct {
 			"2024-02-29_20-13", "2024-02-29_19-13",
 		},
 		extraDailyNeeded: false,
-		extraDaily:        "2024-02-29",
+		extraDaily:       "2024-02-29",
 		filterDatesToday: []string{
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
@@ -682,11 +683,11 @@ var testsForHourlies = []struct {
 		},
 	},
 	{
-		name:               "Test Case 2 - no existing dirs, with Feb in leap year",
-		testTime:          time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
-		existingDirs:      []string{},
+		name:             "Test Case 2 - no existing dirs, with Feb in leap year",
+		testTime:         time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
+		existingDirs:     []string{},
 		extraDailyNeeded: true,
-		extraDaily:        "2024-02-29",
+		extraDaily:       "2024-02-29",
 		filterDatesToday: []string{
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
@@ -698,7 +699,7 @@ var testsForHourlies = []struct {
 		},
 	},
 	{
-		name:      "Test Case 3 - sparse, one hit yesterday, with Feb in leap year",
+		name:     "Test Case 3 - sparse, one hit yesterday, with Feb in leap year",
 		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
 		existingDirs: []string{
 			/*XXXXXXXXXXXXXXX*/ "2024-03-01_19-13", "2024-03-01_18-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_16-13", /*XXXXXXXXXXXXXXX*/
@@ -709,7 +710,7 @@ var testsForHourlies = []struct {
 			/*XXXXXXXXXXXXXXX*/ "2024-02-29_19-13",
 		},
 		extraDailyNeeded: false,
-		extraDaily:        "2024-02-29",
+		extraDaily:       "2024-02-29",
 		filterDatesToday: []string{
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
@@ -721,7 +722,7 @@ var testsForHourlies = []struct {
 		},
 	},
 	{
-		name:      "Test Case 4 - sparse, no hit yesterday, with Feb in leap year",
+		name:     "Test Case 4 - sparse, no hit yesterday, with Feb in leap year",
 		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
 		existingDirs: []string{
 			/*XXXXXXXXXXXXXXX*/ "2024-03-01_19-13", "2024-03-01_18-13" /*XXXXXXXXXXXXXXX*/, "2024-03-01_16-13", /*XXXXXXXXXXXXXXX*/
@@ -732,7 +733,7 @@ var testsForHourlies = []struct {
 			/*XXXXXXXXXXXXXXX*/ "2024-02-29_19-13",
 		},
 		extraDailyNeeded: true,
-		extraDaily:        "2024-02-29",
+		extraDaily:       "2024-02-29",
 		filterDatesToday: []string{
 			"2024-03-01_20", "2024-03-01_19", "2024-03-01_18", "2024-03-01_17", "2024-03-01_16", "2024-03-01_15",
 			"2024-03-01_14", "2024-03-01_13", "2024-03-01_12", "2024-03-01_11", "2024-03-01_10", "2024-03-01_09",
@@ -744,7 +745,7 @@ var testsForHourlies = []struct {
 		},
 	},
 	{
-		name:      "Test Case 5 - 24 on a day, with Feb in leap year",
+		name:     "Test Case 5 - 24 on a day, with Feb in leap year",
 		testTime: time.Date(2024, 3, 1, 23, 34, 58, 0, time.UTC),
 		existingDirs: []string{
 			"2024-03-01_23-13", "2024-03-01_22-13", "2024-03-01_21-13", "2024-03-01_20-13", "2024-03-01_19-13", "2024-03-01_18-13",
@@ -755,7 +756,7 @@ var testsForHourlies = []struct {
 			"2024-02-29_23-13", "2024-02-29_22-13",
 		},
 		extraDailyNeeded: true,
-		extraDaily:        "2024-02-29",
+		extraDaily:       "2024-02-29",
 		filterDatesToday: []string{
 
 			"2024-03-01_23", "2024-03-01_22", "2024-03-01_21", "2024-03-01_20", "2024-03-01_19", "2024-03-01_18",
@@ -768,7 +769,7 @@ var testsForHourlies = []struct {
 		},
 	},
 	{
-		name:      "Test Case 6 - 00 o'clock",
+		name:     "Test Case 6 - 00 o'clock",
 		testTime: time.Date(2024, 3, 2, 0, 34, 58, 0, time.UTC),
 		existingDirs: []string{
 			"2024-03-02_00-13",
@@ -780,7 +781,7 @@ var testsForHourlies = []struct {
 			"2024-02-29_23-13", "2024-02-29_22-13",
 		},
 		extraDailyNeeded: false,
-		extraDaily:        "2024-03-01",
+		extraDaily:       "2024-03-01",
 		filterDatesToday: []string{
 			"2024-03-02_00",
 		},
@@ -794,13 +795,13 @@ var testsForHourlies = []struct {
 }
 
 var testsForAllFilters = []struct {
-	name             string
+	name            string
 	testTime        time.Time
 	existingDirs    []string
 	expectedFilters []string
 }{
 	{
-		name:      "Test Case 1 - all there",
+		name:     "Test Case 1 - all there",
 		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
 		existingDirs: []string{
 			// 24 hourlys
@@ -842,7 +843,7 @@ var testsForAllFilters = []struct {
 		},
 	},
 	{
-		name:      "Test Case 2 - no Hourlys for the 29th of February, no January Dailys",
+		name:     "Test Case 2 - no Hourlys for the 29th of February, no January Dailys",
 		testTime: time.Date(2024, 3, 1, 20, 34, 58, 0, time.UTC),
 		existingDirs: []string{
 			// hourlys - none for the 29th
@@ -1456,10 +1457,5 @@ func unexpectOutput(t *testing.T, output string, expectedOutput string) {
 }
 
 func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }

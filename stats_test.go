@@ -513,7 +513,7 @@ func Test_DuInternalDirectory_SemaphoreExhaustion(t *testing.T) {
 	const chainDepth = semaphoreLimit + 3 // comfortably deeper than the pool
 
 	dir := root
-	for i := 0; i < chainDepth; i++ {
+	for i := range chainDepth {
 		dir = filepath.Join(dir, fmt.Sprintf("d%d", i))
 		if err := os.Mkdir(dir, 0755); err != nil {
 			t.Fatalf("failed to create nested dir %s: %v", dir, err)
@@ -553,12 +553,12 @@ func Test_DiskUsage_WideConcurrency(t *testing.T) {
 	const filesPerSubdir = 5
 	const fileSize = 17
 
-	for i := 0; i < numSubdirs; i++ {
+	for i := range numSubdirs {
 		sub := filepath.Join(dir, fmt.Sprintf("sub%d", i))
 		if err := os.Mkdir(sub, 0755); err != nil {
 			t.Fatalf("failed to create %s: %v", sub, err)
 		}
-		for j := 0; j < filesPerSubdir; j++ {
+		for j := range filesPerSubdir {
 			fname := filepath.Join(sub, fmt.Sprintf("file%d", j))
 			if err := createTestfile(fname, fileSize); err != nil {
 				t.Fatalf("failed to create %s: %v", fname, err)

@@ -107,11 +107,12 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 	if err2 != nil {
 		errorMessage := fmt.Sprintf("Error creating directory \"%s\": %s", delPath, err2)
 		if verbosity > 0 {
-			movedDirs := "\nI would have moved the following directories there:\n"
+			var movedDirs strings.Builder
+			movedDirs.WriteString("\nI would have moved the following directories there:\n")
 			for _, dir := range toDelete {
-				movedDirs += fmt.Sprintf(" - %s\n", dir)
+				fmt.Fprintf(&movedDirs, " - %s\n", dir)
 			}
-			errorMessage += movedDirs
+			errorMessage += movedDirs.String()
 		}
 		return errors.New(errorMessage)
 	}
