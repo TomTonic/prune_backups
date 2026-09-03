@@ -1384,7 +1384,7 @@ func Test_pruneDirectory(t *testing.T) {
 
 		// Check that the directories that should not be moved are still in the original location
 		for _, dir := range dirsToCreate {
-			if !contains(movedDirs, dir) {
+			if !slices.Contains(movedDirs, dir) {
 				_, err := os.Stat(filepath.Join(pruneDir, dir))
 				if os.IsNotExist(err) {
 					t.Fatalf("Expected directory %s to remain in %s, but it was moved", dir, pruneDir)
@@ -1454,8 +1454,4 @@ func unexpectOutput(t *testing.T, output string, expectedOutput string) {
 	if strings.Contains(output, expectedOutput) {
 		t.Fatalf("Expected output NOT to contain %q, got %q", expectedOutput, output)
 	}
-}
-
-func contains(slice []string, item string) bool {
-	return slices.Contains(slice, item)
 }
