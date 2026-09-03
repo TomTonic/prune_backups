@@ -101,7 +101,7 @@ func duInternalDirectory(directoryName string, globalInfo *infoblock_internal, s
 	localInfo := infoblock_internal{}
 	defer addAll(globalInfo, &localInfo) // this is synchronized
 
-	files, err := readDirWithRetry(directoryName, 1000000, 2)
+	subdirs, err := scanDirectory(directoryName, &localInfo, semaphore)
 	if err != nil {
 		if errors.Is(err, fs.ErrPermission) {
 			localInfo.ib.number_of_permission_errors_dirs += 1
@@ -111,28 +111,14 @@ func duInternalDirectory(directoryName string, globalInfo *infoblock_internal, s
 		return
 	}
 
-	subdirs := []string{}
-	for _, file := range files {
-		fullPath := filepath.Join(directoryName, file.Name())
-		if file.Type().IsRegular() {
-			duInternalFile(fullPath, &localInfo)
-		} else if file.Type().IsDir() {
-			subdirs = append(subdirs, fullPath)
-		} else {
-			countAccordingType(file.Type(), &localInfo)
-		}
-	}
-
 	localInfo.ib.number_of_subdirs += len(subdirs)
 
 	// now descend into the directories
 	var wg sync.WaitGroup
 
 	for _, subdir := range subdirs {
-		semaphore.Acquire()
 		wg.Add(1)
 		go func(subdir string) {
-			defer func() { semaphore.Release() }() // Release the token when done
 			defer wg.Done()
 			duInternalDirectory(subdir, globalInfo, semaphore)
 		}(subdir)
@@ -140,6 +126,37 @@ func duInternalDirectory(directoryName string, globalInfo *infoblock_internal, s
 
 	wg.Wait() // Wait for all child directories to complete
 
+}
+
+// scanDirectory lists directoryName and processes its regular-file and other
+// (non-directory) entries, returning the subdirectory paths to recurse into.
+// The semaphore is held only for this fd-heavy local work (directory listing plus
+// per-file stat calls) and always released before returning, so it bounds how many
+// directories are scanned concurrently rather than the lifetime of an entire
+// subtree. Holding it across the caller's wg.Wait() instead would deadlock once
+// enough directories were in flight at once: every slot would end up held by a
+// goroutine blocked on a child that could never acquire a slot of its own.
+func scanDirectory(directoryName string, localInfo *infoblock_internal, semaphore Semaphore) ([]string, error) {
+	semaphore.Acquire()
+	defer semaphore.Release()
+
+	files, err := readDirWithRetry(directoryName, 1000000, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	subdirs := []string{}
+	for _, file := range files {
+		fullPath := filepath.Join(directoryName, file.Name())
+		if file.Type().IsRegular() {
+			duInternalFile(fullPath, localInfo)
+		} else if file.Type().IsDir() {
+			subdirs = append(subdirs, fullPath)
+		} else {
+			countAccordingType(file.Type(), localInfo)
+		}
+	}
+	return subdirs, nil
 }
 
 func addAll(globalInfo, localInfo *infoblock_internal) {
