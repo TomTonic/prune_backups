@@ -17,6 +17,21 @@ var commitInfo = func() string {
 	return "untagged"
 }()
 
+// dedupeStrings returns s with duplicate elements removed, keeping each
+// element's first occurrence and the original relative order of the
+// survivors. Duplicates need not be adjacent.
+func dedupeStrings(s []string) []string {
+	seen := make(map[string]bool, len(s))
+	result := make([]string, 0, len(s))
+	for _, v := range s {
+		if !seen[v] {
+			seen[v] = true
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
 func getAllButFirstMatchingPrefix(from []string, prefix string) []string {
 	var result = []string{} // make sure it's not nil
 	var first = true
