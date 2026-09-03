@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestIsDirectory(t *testing.T) {
@@ -487,5 +489,98 @@ func TestCountAccordingType(t *testing.T) {
 		if test.expected(info) != 1 {
 			t.Errorf("expected 1, got %d for mode %v", test.expected(info), test.mode)
 		}
+	}
+}
+
+// Test_DuInternalDirectory_SemaphoreExhaustion is a regression test for a
+// concurrency deadlock: duInternalDirectory used to hold its semaphore slot for
+// its entire lifetime, including while blocked in wg.Wait() for its own children.
+// With a directory chain deeper than the semaphore's capacity, every slot ended up
+// held by a goroutine waiting on a child that could never acquire a slot itself -
+// a permanent deadlock. scanDirectory now releases the slot before recursion, so
+// the pool only bounds concurrent directory scanning, not subtree lifetime.
+//
+// This builds a directory chain deeper than a small semaphore and expects
+// duInternalDirectory to return well within the timeout.
+//
+// Note: if this test times out (i.e. the bug reappears), the goroutine chain it
+// started stays blocked forever (a leaked, permanently parked goroutine) - that is
+// expected and harmless for the remainder of this test binary's run.
+func Test_DuInternalDirectory_SemaphoreExhaustion(t *testing.T) {
+	root := t.TempDir()
+
+	const semaphoreLimit = 2
+	const chainDepth = semaphoreLimit + 3 // comfortably deeper than the pool
+
+	dir := root
+	for i := 0; i < chainDepth; i++ {
+		dir = filepath.Join(dir, fmt.Sprintf("d%d", i))
+		if err := os.Mkdir(dir, 0755); err != nil {
+			t.Fatalf("failed to create nested dir %s: %v", dir, err)
+		}
+	}
+
+	globalInfo := &infoblock_internal{}
+	semaphore := NewSemaphore(semaphoreLimit)
+
+	done := make(chan struct{})
+	go func() {
+		duInternalDirectory(root, globalInfo, semaphore)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		if globalInfo.ib.number_of_subdirs != chainDepth {
+			t.Errorf("expected %d subdirs, got %d", chainDepth, globalInfo.ib.number_of_subdirs)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("duInternalDirectory did not return within 5s: a directory chain deeper " +
+			"than the semaphore's capacity deadlocks, because each level holds its slot " +
+			"while waiting (wg.Wait) for a child that needs a slot from the same pool")
+	}
+}
+
+// Test_DiskUsage_WideConcurrency exercises the real DiskUsage entry point (with the
+// production semaphore limit) across many concurrently scanned subdirectories, to
+// give the mutex-protected aggregation in addAll real exposure under `go test -race`.
+// The existing fixture-based tests use only a handful of subdirectories, which is
+// not enough concurrency to meaningfully stress shared-state access.
+func Test_DiskUsage_WideConcurrency(t *testing.T) {
+	dir := t.TempDir()
+
+	const numSubdirs = 200
+	const filesPerSubdir = 5
+	const fileSize = 17
+
+	for i := 0; i < numSubdirs; i++ {
+		sub := filepath.Join(dir, fmt.Sprintf("sub%d", i))
+		if err := os.Mkdir(sub, 0755); err != nil {
+			t.Fatalf("failed to create %s: %v", sub, err)
+		}
+		for j := 0; j < filesPerSubdir; j++ {
+			fname := filepath.Join(sub, fmt.Sprintf("file%d", j))
+			if err := createTestfile(fname, fileSize); err != nil {
+				t.Fatalf("failed to create %s: %v", fname, err)
+			}
+		}
+	}
+
+	got, err := DiskUsage(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedFiles := numSubdirs * filesPerSubdir
+	expectedSize := uint64(expectedFiles * fileSize)
+
+	if got.number_of_unlinked_files != expectedFiles {
+		t.Errorf("expected %d unlinked files, got %d", expectedFiles, got.number_of_unlinked_files)
+	}
+	if got.size_of_unlinked_files != expectedSize {
+		t.Errorf("expected total size %d, got %d", expectedSize, got.size_of_unlinked_files)
+	}
+	if got.number_of_subdirs != numSubdirs {
+		t.Errorf("expected %d subdirs, got %d", numSubdirs, got.number_of_subdirs)
 	}
 }
