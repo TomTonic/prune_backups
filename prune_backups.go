@@ -93,7 +93,11 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 
 	var toDelete []string // in this array we will collect all directories that we will move to the to_delete-directory
 
-	filters := getAllFilters(now, dirs)
+	// Deduplicated so that a filter appearing more than once - e.g. the same
+	// local hour occurring twice on a DST fall-back day - doesn't queue the
+	// same directory for the move below more than once, which would fail on
+	// its second attempt since the first already moved it away.
+	filters := dedupeStrings(getAllFilters(now, dirs))
 	for _, filter := range filters {
 		addToDelete := getAllButFirstMatchingPrefix(dirs, filter)
 		toDelete = append(toDelete, addToDelete...)
@@ -107,11 +111,12 @@ func pruneDirectory(pruneDirName string, now time.Time, toDeleteDirName string, 
 	if err2 != nil {
 		errorMessage := fmt.Sprintf("Error creating directory \"%s\": %s", delPath, err2)
 		if verbosity > 0 {
-			movedDirs := "\nI would have moved the following directories there:\n"
+			var movedDirs strings.Builder
+			movedDirs.WriteString("\nI would have moved the following directories there:\n")
 			for _, dir := range toDelete {
-				movedDirs += fmt.Sprintf(" - %s\n", dir)
+				fmt.Fprintf(&movedDirs, " - %s\n", dir)
 			}
-			errorMessage += movedDirs
+			errorMessage += movedDirs.String()
 		}
 		return errors.New(errorMessage)
 	}

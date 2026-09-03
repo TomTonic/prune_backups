@@ -1,0 +1,36 @@
+name: E2E Tests
+
+on: [push]
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # The E2E tests generate tens of thousands of directories/files via a
+      # deterministic PRNG. A tmpfs mount keeps that fast and avoids wearing
+      # on the runner's real disk; actual usage is well under 1G, the size
+      # here is just a generous cap.
+      - name: Mount tmpfs for E2E fixtures
+        run: |
+          sudo mkdir -p /mnt/e2e-tmp
+          sudo mount -t tmpfs -o size=2G,mode=1777 tmpfs /mnt/e2e-tmp
+
+      - name: Run E2E tests
+        env:
+          TMPDIR: /mnt/e2e-tmp
+        run: go test -tags e2e -timeout 20m -v .

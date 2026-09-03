@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestIsDirectory(t *testing.T) {
@@ -487,5 +490,161 @@ func TestCountAccordingType(t *testing.T) {
 		if test.expected(info) != 1 {
 			t.Errorf("expected 1, got %d for mode %v", test.expected(info), test.mode)
 		}
+	}
+}
+
+// mustMkdir creates dir or fails the test.
+func mustMkdir(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.Mkdir(dir, 0755); err != nil {
+		t.Fatalf("failed to create dir %s: %v", dir, err)
+	}
+}
+
+// Test_DuInternalDirectory_SemaphoreExhaustion is a regression test for the
+// deadlock described in duInternalDirectory's doc comment: a directory chain
+// deeper than the semaphore's capacity used to hang forever. It builds such a
+// chain against a small semaphore and expects duInternalDirectory to return
+// well within the timeout.
+//
+// Note: if this test times out (i.e. the bug reappears), the goroutine chain it
+// started stays blocked forever (a leaked, permanently parked goroutine) - that is
+// expected and harmless for the remainder of this test binary's run.
+func Test_DuInternalDirectory_SemaphoreExhaustion(t *testing.T) {
+	root := t.TempDir()
+
+	const semaphoreLimit = 2
+	const chainDepth = semaphoreLimit + 3 // comfortably deeper than the pool
+
+	dir := root
+	for i := range chainDepth {
+		dir = filepath.Join(dir, fmt.Sprintf("d%d", i))
+		mustMkdir(t, dir)
+	}
+
+	globalInfo := &infoblock_internal{}
+	semaphore := NewSemaphore(semaphoreLimit)
+
+	done := make(chan struct{})
+	go func() {
+		semaphore.Acquire() // as DiskUsage does for the un-spawned root call
+		duInternalDirectory(root, globalInfo, semaphore)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		if globalInfo.ib.number_of_subdirs != chainDepth {
+			t.Errorf("expected %d subdirs, got %d", chainDepth, globalInfo.ib.number_of_subdirs)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("duInternalDirectory did not return within 5s - semaphore deadlock regression, see its doc comment")
+	}
+}
+
+// Test_DuInternalDirectory_WideFanoutBounded is a regression test for a
+// resource-bounding regression introduced (and fixed) alongside the deadlock
+// fix above: a version of duInternalDirectory that spawns every child
+// goroutine unconditionally, only gating the fd-heavy work inside
+// scanDirectory, would let a single wide directory spawn one goroutine per
+// subdirectory with no throttle at all - defeating the point of the
+// semaphore for breadth-heavy trees even once the deadlock is fixed.
+//
+// It samples the extra goroutine count (beyond this test's own baseline)
+// while scanning a directory with far more subdirectories than the semaphore
+// permits in flight, and asserts the observed peak stays within a generous
+// multiple of the semaphore's limit rather than approaching the subdirectory
+// count.
+func Test_DuInternalDirectory_WideFanoutBounded(t *testing.T) {
+	root := t.TempDir()
+
+	const numSubdirs = 3000
+	const semaphoreLimit = 20
+	// Generous slack over semaphoreLimit to absorb scheduling noise without
+	// masking a real regression: unbounded fan-out would push the peak toward
+	// numSubdirs (3000), far past this bound.
+	const maxExpectedExtraGoroutines = semaphoreLimit * 50
+
+	for i := range numSubdirs {
+		mustMkdir(t, filepath.Join(root, fmt.Sprintf("sub%d", i)))
+	}
+
+	globalInfo := &infoblock_internal{}
+	semaphore := NewSemaphore(semaphoreLimit)
+
+	baseline := runtime.NumGoroutine()
+	var peakExtra atomic.Int64
+	stopMonitor := make(chan struct{})
+	monitorDone := make(chan struct{})
+	go func() {
+		defer close(monitorDone)
+		ticker := time.NewTicker(200 * time.Microsecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopMonitor:
+				return
+			case <-ticker.C:
+				if extra := int64(runtime.NumGoroutine() - baseline); extra > peakExtra.Load() {
+					peakExtra.Store(extra)
+				}
+			}
+		}
+	}()
+
+	semaphore.Acquire() // as DiskUsage does for the un-spawned root call
+	duInternalDirectory(root, globalInfo, semaphore)
+	close(stopMonitor)
+	<-monitorDone
+
+	if globalInfo.ib.number_of_subdirs != numSubdirs {
+		t.Errorf("expected %d subdirs, got %d", numSubdirs, globalInfo.ib.number_of_subdirs)
+	}
+	if peakExtra.Load() > maxExpectedExtraGoroutines {
+		t.Errorf("peak extra goroutines during scan = %d, want <= %d (semaphore limit %d): "+
+			"duInternalDirectory's fan-out no longer looks bounded by the semaphore",
+			peakExtra.Load(), maxExpectedExtraGoroutines, semaphoreLimit)
+	}
+}
+
+// Test_DiskUsage_WideConcurrency exercises the real DiskUsage entry point (with the
+// production semaphore limit) across many concurrently scanned subdirectories, to
+// give the mutex-protected aggregation in addAll real exposure under `go test -race`.
+// The existing fixture-based tests use only a handful of subdirectories, which is
+// not enough concurrency to meaningfully stress shared-state access.
+func Test_DiskUsage_WideConcurrency(t *testing.T) {
+	dir := t.TempDir()
+
+	const numSubdirs = 200
+	const filesPerSubdir = 5
+	const fileSize = 17
+
+	for i := range numSubdirs {
+		sub := filepath.Join(dir, fmt.Sprintf("sub%d", i))
+		mustMkdir(t, sub)
+		for j := range filesPerSubdir {
+			fname := filepath.Join(sub, fmt.Sprintf("file%d", j))
+			if err := createTestfile(fname, fileSize); err != nil {
+				t.Fatalf("failed to create %s: %v", fname, err)
+			}
+		}
+	}
+
+	got, err := DiskUsage(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedFiles := numSubdirs * filesPerSubdir
+	expectedSize := uint64(expectedFiles * fileSize)
+
+	if got.number_of_unlinked_files != expectedFiles {
+		t.Errorf("expected %d unlinked files, got %d", expectedFiles, got.number_of_unlinked_files)
+	}
+	if got.size_of_unlinked_files != expectedSize {
+		t.Errorf("expected total size %d, got %d", expectedSize, got.size_of_unlinked_files)
+	}
+	if got.number_of_subdirs != numSubdirs {
+		t.Errorf("expected %d subdirs, got %d", numSubdirs, got.number_of_subdirs)
 	}
 }
