@@ -45,8 +45,8 @@ var (
 func DiskUsage(path string) (Infoblock, error) {
 	result := infoblock_internal{}
 	const limit = 4000
-	semaphore := NewSemaphore(limit)  // Limit the number of concurrent goroutines
-	debug.SetMaxThreads(2 * limit)    // Ensure the thread limit is high enough
+	semaphore := NewSemaphore(limit) // Limit the number of concurrent goroutines
+	debug.SetMaxThreads(2 * limit)   // Ensure the thread limit is high enough
 
 	nevermind, err := os.Open(path)
 	defer func() {
@@ -117,11 +117,9 @@ func duInternalDirectory(directoryName string, globalInfo *infoblock_internal, s
 	var wg sync.WaitGroup
 
 	for _, subdir := range subdirs {
-		wg.Add(1)
-		go func(subdir string) {
-			defer wg.Done()
+		wg.Go(func() {
 			duInternalDirectory(subdir, globalInfo, semaphore)
-		}(subdir)
+		})
 	}
 
 	wg.Wait() // Wait for all child directories to complete

@@ -263,8 +263,8 @@ func Test_getUltimo(t *testing.T) {
 func Test_getAnyMatchingAnyPrefixes(t *testing.T) {
 	tests := []struct {
 		searchIn []string
-		prefixes  []string
-		want      bool
+		prefixes []string
+		want     bool
 	}{
 		{[]string{"apple", "banana", "cherry"}, []string{"a", "b"}, true},
 		{[]string{"apple", "banana", "cherry"}, []string{"d", "e"}, false},
