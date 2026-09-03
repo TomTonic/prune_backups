@@ -6,6 +6,34 @@ import (
 	"time"
 )
 
+func Test_dedupeStrings(t *testing.T) {
+	testCases := []struct {
+		name string
+		in   []string
+		want []string
+	}{
+		{name: "nil", in: nil, want: []string{}},
+		{name: "empty", in: []string{}, want: []string{}},
+		{name: "no duplicates", in: []string{"a", "b", "c"}, want: []string{"a", "b", "c"}},
+		{name: "adjacent duplicate", in: []string{"a", "a", "b"}, want: []string{"a", "b"}},
+		{
+			name: "non-adjacent duplicate preserves first occurrence's position",
+			in:   []string{"a", "b", "a", "c", "b"},
+			want: []string{"a", "b", "c"},
+		},
+		{name: "all duplicates", in: []string{"x", "x", "x"}, want: []string{"x"}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := dedupeStrings(tc.in)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("dedupeStrings(%v) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
 func Test_getAllButFirstMatchingPrefix(t *testing.T) {
 	testCases := []struct {
 		name   string
