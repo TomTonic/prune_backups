@@ -45,8 +45,11 @@ var (
 func DiskUsage(path string) (Infoblock, error) {
 	result := infoblock_internal{}
 	const limit = 4000
-	semaphore := NewSemaphore(limit)  // Limit the number of concurrent goroutines
-	debug.SetMaxThreads(2 * limit)    // Ensure the thread limit is high enough
+	// limit bounds how many directories may be spawned-but-not-yet-locally-scanned
+	// at once (see duInternalDirectory / scanDirectory below), not how many
+	// goroutines exist in total.
+	semaphore := NewSemaphore(limit)
+	debug.SetMaxThreads(2 * limit) // Ensure the thread limit is high enough
 
 	nevermind, err := os.Open(path)
 	defer func() {
@@ -59,6 +62,11 @@ func DiskUsage(path string) (Infoblock, error) {
 	}
 
 	if ok, err := isDirectory(path); ok {
+		// duInternalDirectory expects the caller to have already acquired one
+		// token on its behalf (the recursion loop below does this for every
+		// call it spawns); DiskUsage does it here for the initial, un-spawned
+		// root call.
+		semaphore.Acquire()
 		duInternalDirectory(path, &result, semaphore)
 	} else {
 		if err != nil {
@@ -97,11 +105,23 @@ func duInternalFile(fileName string, info *infoblock_internal) {
 	}
 }
 
+// duInternalDirectory processes directoryName. The caller must have already
+// acquired one semaphore token on its behalf - either DiskUsage, for the
+// un-spawned root call, or the recursion loop below, for every call it
+// spawns. duInternalDirectory releases that token itself, right after its own
+// local scanDirectory work completes, before it recurses into subdirectories.
+// That keeps the original bound on how many directories can be spawned-and-
+// scanning (or spawned-and-waiting-to-scan) at once, while fixing a deadlock a
+// prior version of this function had: it released the token only after its
+// entire subtree had finished, so once enough directories were in flight at
+// once, every token ended up held by a goroutine blocked in wg.Wait() for a
+// child that could never acquire a token of its own.
 func duInternalDirectory(directoryName string, globalInfo *infoblock_internal, semaphore Semaphore) {
 	localInfo := infoblock_internal{}
 	defer addAll(globalInfo, &localInfo) // this is synchronized
 
-	files, err := readDirWithRetry(directoryName, 1000000, 2)
+	subdirs, err := scanDirectory(directoryName, &localInfo)
+	semaphore.Release()
 	if err != nil {
 		if errors.Is(err, fs.ErrPermission) {
 			localInfo.ib.number_of_permission_errors_dirs += 1
@@ -111,35 +131,42 @@ func duInternalDirectory(directoryName string, globalInfo *infoblock_internal, s
 		return
 	}
 
-	subdirs := []string{}
-	for _, file := range files {
-		fullPath := filepath.Join(directoryName, file.Name())
-		if file.Type().IsRegular() {
-			duInternalFile(fullPath, &localInfo)
-		} else if file.Type().IsDir() {
-			subdirs = append(subdirs, fullPath)
-		} else {
-			countAccordingType(file.Type(), &localInfo)
-		}
-	}
-
 	localInfo.ib.number_of_subdirs += len(subdirs)
 
 	// now descend into the directories
 	var wg sync.WaitGroup
 
 	for _, subdir := range subdirs {
-		semaphore.Acquire()
-		wg.Add(1)
-		go func(subdir string) {
-			defer func() { semaphore.Release() }() // Release the token when done
-			defer wg.Done()
+		semaphore.Acquire() // released by the spawned call above, not here
+		wg.Go(func() {
 			duInternalDirectory(subdir, globalInfo, semaphore)
-		}(subdir)
+		})
 	}
 
 	wg.Wait() // Wait for all child directories to complete
 
+}
+
+// scanDirectory lists directoryName and processes its regular-file and other
+// (non-directory) entries, returning the subdirectory paths to recurse into.
+func scanDirectory(directoryName string, localInfo *infoblock_internal) ([]string, error) {
+	files, err := readDirWithRetry(directoryName, 1000000, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	subdirs := []string{}
+	for _, file := range files {
+		fullPath := filepath.Join(directoryName, file.Name())
+		if file.Type().IsRegular() {
+			duInternalFile(fullPath, localInfo)
+		} else if file.Type().IsDir() {
+			subdirs = append(subdirs, fullPath)
+		} else {
+			countAccordingType(file.Type(), localInfo)
+		}
+	}
+	return subdirs, nil
 }
 
 func addAll(globalInfo, localInfo *infoblock_internal) {
@@ -240,9 +267,15 @@ func openFileWithRetry(filename string, retries, maxWaitSeconds int) (*os.File, 
 	return nil, fmt.Errorf("failed to open file after %v retries: %s", retries, filename)
 }
 
-// Semaphore limits concurrent goroutines via a buffered channel.
-// Goroutines park on Acquire when the limit is reached and are woken
-// immediately when a slot is released — no busy-waiting, no polling delay.
+// Semaphore is a counting semaphore backed by a buffered channel. Callers
+// park on Acquire when the limit is reached and are woken immediately when a
+// token is released — no busy-waiting, no polling delay. A token acquired by
+// one goroutine may safely be released by another; there is no
+// ownership/affinity requirement, since it's backed by a plain channel. What
+// exactly a token bounds (concurrent goroutines, concurrent I/O, or something
+// narrower) is up to where the caller places Acquire/Release - see
+// duInternalDirectory for a case where the two are placed asymmetrically on
+// purpose.
 type Semaphore chan struct{}
 
 func NewSemaphore(limit int) Semaphore {
