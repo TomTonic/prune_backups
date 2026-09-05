@@ -45,61 +45,34 @@ jobs:
           GOOS=windows GOARCH=386 go build -o dist/prune_backups-x86-win.exe .
           GOOS=darwin GOARCH=amd64 go build -o dist/prune_backups-amd64-mac .
           GOOS=darwin GOARCH=arm64 go build -o dist/prune_backups-arm64-mac .
-#          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/prune_backups-${{ matrix.goos }}-${{ matrix.goarch }} .
 
-#      - name: Create Debian Package
-#        run: |
-#          mkdir -p debian/DEBIAN
-#          echo "Package: prune_backups" > debian/DEBIAN/control
-#          echo "Version: 1.0.0" >> debian/DEBIAN/control
-#          echo "Architecture: amd64" >> debian/DEBIAN/control
-#          echo "Maintainer: Your Name <you@example.com>" >> debian/DEBIAN/control
-#          echo "Description: Prune Backups Tool" >> debian/DEBIAN/control
-#          mkdir -p debian/usr/local/bin
-#          cp dist/prune_backups-amd64-linux debian/usr/local/bin/prune_backups
-#          dpkg-deb --build debian prune_backups_1.0.0_amd64.deb
-#          mv prune_backups_1.0.0_amd64.deb dist/
+      - name: Install nfpm
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
 
-#      - name: Create RPM Package
-#        run: |
-#          mkdir -p rpm/SPECS
-#          echo "Name: prune_backups" > rpm/SPECS/prune_backups.spec
-#          echo "Version: 1.0.0" >> rpm/SPECS/prune_backups.spec
-#          echo "Release: 1%{?dist}" >> rpm/SPECS/prune_backups.spec
-#          echo "Summary: Prune Backups Tool" >> rpm/SPECS/prune_backups.spec
-#          echo "License: MIT" >> rpm/SPECS/prune_backups.spec
-#          echo "Source0: %{name}-%{version}.tar.gz" >> rpm/SPECS/prune_backups.spec
-#          echo "%description" >> rpm/SPECS/prune_backups.spec
-#          echo "Prune Backups Tool" >> rpm/SPECS/prune_backups.spec
-#          mkdir -p rpm/SOURCES
-#          tar -czf rpm/SOURCES/prune_backups-1.0.0.tar.gz -C dist prune_backups-amd64-linux
-#          rpmbuild -ba rpm/SPECS/prune_backups.spec
-#          mv ~/rpmbuild/RPMS/x86_64/prune_backups-1.0.0-1.x86_64.rpm dist/
-
-#      - name: Create MSI Installer
-#        run: |
-#          mkdir -p msi
-#          echo "Product: Prune Backups" > msi/product.wxs
-#          echo "Version: 1.0.0" >> msi/product.wxs
-#          echo "Manufacturer: Your Name" >> msi/product.wxs
-#          echo "Executable: dist/prune_backups-amd64-win.exe" >> msi/product.wxs
-#          candle msi/product.wxs
-#          light -out dist/prune_backups-amd64-win.msi msi/product.wixobj
-
-#      - name: Create Homebrew Formula
-#        run: |
-#          echo "class PruneBackups < Formula" > dist/prune_backups.rb
-#          echo "  desc \"Prune Backups Tool\"" >> dist/prune_backups.rb
-#          echo "  homepage \"https://example.com\"" >> dist/prune_backups.rb
-#          echo "  url \"file://#{Dir.pwd}/dist/prune_backups-amd64-mac\"" >> dist/prune_backups.rb
-#          echo "  version \"1.0.0\"" >> dist/prune_backups.rb
-#          echo "  def install" >> dist/prune_backups.rb
-#          echo "    bin.install \"prune_backups-amd64-mac\"" >> dist/prune_backups.rb
-#          echo "  end" >> dist/prune_backups.rb
+      # Builds .deb, .rpm, .apk and .pkg.tar.zst packages from the shared
+      # nfpm.yaml spec, so this single config covers Debian/Ubuntu (and
+      # derivatives like Mint, Pop!_OS, Raspberry Pi OS), Fedora/RHEL/CentOS/
+      # Rocky/Alma/openSUSE, Alpine, and Arch Linux. The binary itself is a
+      # static, CGO-free Go build, so one package per architecture works
+      # across all distro versions supported by the target Go release -
+      # there is no need for per-distro-version builds.
+      - name: Build Linux Packages (deb, rpm, apk, pacman)
+        env:
+          NFPM_VERSION: ${{ github.ref_name }}
+        run: |
+          NFPM_VERSION=${NFPM_VERSION#v}
+          for arch in amd64 arm64; do
+            export NFPM_ARCH=$arch
+            export NFPM_VERSION
+            export NFPM_BIN=dist/prune_backups-${arch}-linux
+            for pkg in deb rpm apk archlinux; do
+              nfpm package --config nfpm.yaml --packager "$pkg" --target dist/
+            done
+          done
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: |
             dist/prune_backups-*
-#            dist/prune_backups.rb
+            dist/prune_backups_*
