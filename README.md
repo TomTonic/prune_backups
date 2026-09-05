@@ -12,6 +12,42 @@
 
 ## Installation
 
+### Linux Packages (deb, rpm, apk, Arch)
+
+Every [release](https://github.com/TomTonic/prune_backups/releases) also ships ready-to-install packages for `amd64` and `arm64`, built directly from the same static, dependency-free Go binary described below. Since the binary has no C library dependency (no cgo), one package per architecture works across all versions of the corresponding distro family that are still supported by the Go toolchain used to build it - there is no need to pick a package per Ubuntu/Debian/Fedora version.
+
+* **Debian / Ubuntu** (and derivatives such as Linux Mint, Pop!_OS, Raspberry Pi OS): download the `.deb` asset, then run:
+
+  ```Shell
+  sudo apt install ./prune_backups_<version>_<amd64|arm64>.deb
+  ```
+
+* **Fedora / RHEL / CentOS / Rocky / AlmaLinux**: download the `.rpm` asset, then run:
+
+  ```Shell
+  sudo dnf install ./prune_backups-<version>-1.<x86_64|aarch64>.rpm
+  ```
+
+* **openSUSE / SLES**: same `.rpm` asset, installed with:
+
+  ```Shell
+  sudo zypper install ./prune_backups-<version>-1.<x86_64|aarch64>.rpm
+  ```
+
+* **Alpine Linux**: download the `.apk` asset, then run:
+
+  ```Shell
+  sudo apk add --allow-untrusted ./prune_backups_<version>_<x86_64|aarch64>.apk
+  ```
+
+* **Arch Linux** (and derivatives such as Manjaro, EndeavourOS): download the `.pkg.tar.zst` asset, then run:
+
+  ```Shell
+  sudo pacman -U ./prune_backups-<version>-1-<x86_64|aarch64>.pkg.tar.zst
+  ```
+
+All of these install the `prune_backups` binary to `/usr/bin/prune_backups`, so it is immediately available on your `PATH`.
+
 ### Binary Distribution
 
 You can download fully self-contained executable binaries of `prune_backups` for various platforms from the [releases page of this project](https://github.com/TomTonic/prune_backups/releases). Just navigate to the 'Assets' section of the latest release and download the appropriate binary. To run it just **rename it to 'prune_backups' and mark it as executable** (use [`chmod u+x`](https://man7.org/linux/man-pages/man1/chmod.1p.html) on Linux and MacOS). On Windows and MacOS you will have to **mark the binaries as save for execution**, as they are not digitally signed. These binaries are build on the GitHub servers by the GitHub Actions code in this repository. If you don't trust them either, you can easily build your own binaries from the source code (see next section).
