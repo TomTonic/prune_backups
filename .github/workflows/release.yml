@@ -34,6 +34,16 @@ jobs:
           go-version-file: go.mod
 
       - name: Build Executable
+        # CGO_ENABLED=0 is required, not cosmetic: GOARCH=amd64 on an amd64
+        # runner is not a cross-compile, so cgo stays enabled by default and
+        # the linux/amd64 binary comes out dynamically linked against the
+        # runner's glibc - while every other target cross-compiles and is
+        # static. That asymmetry breaks the premise these packages are built
+        # on ("one package per architecture works on every distro"): the
+        # amd64 build then cannot run on musl distros at all, and fails on
+        # any distro whose glibc is older than the runner's.
+        env:
+          CGO_ENABLED: 0
         run: |
           mkdir -p dist
           GOOS=linux GOARCH=amd64 go build -o dist/prune_backups-amd64-linux .
