@@ -95,28 +95,59 @@ Fedora version.
 All of these install the `prune_backups` binary to `/usr/bin/prune_backups`,
 so it is immediately available on your `PATH`.
 
-## Windows
+## macOS: Homebrew (recommended - auto-updating)
 
-Download `prune_backups-<amd64|arm64|x86>-win.exe` from the
-[releases page](https://github.com/TomTonic/prune_backups/releases) and
-place it wherever you like - it's fully self-contained, no installer
-needed. Since the binary isn't code-signed, Windows SmartScreen will warn
-on first run: click **More info** → **Run anyway** (or right-click the
-file → **Properties** → **Unblock**).
-
-## macOS
-
-Download `prune_backups-<amd64|arm64>-mac` from the
-[releases page](https://github.com/TomTonic/prune_backups/releases), then:
+prune_backups is available via a [Homebrew tap](https://github.com/TomTonic/homebrew-tap)
+maintained alongside this project (not homebrew-core), published automatically
+by each release:
 
 ```Shell
-chmod +x prune_backups-<amd64|arm64>-mac
-xattr -d com.apple.quarantine prune_backups-<amd64|arm64>-mac   # since it's not notarized
-mv prune_backups-<amd64|arm64>-mac /usr/local/bin/prune_backups  # or anywhere on your PATH
+brew install TomTonic/tap/prune_backups
+```
+
+`brew upgrade` picks up new releases automatically, and the binary lands on
+your `PATH` at `/opt/homebrew/bin/prune_backups` (Apple silicon) or
+`/usr/local/bin/prune_backups` (Intel).
+
+The cask clears the `com.apple.quarantine` attribute that Homebrew Cask sets
+on everything it stages. Without that, macOS does not merely warn about the
+un-notarized binary - Gatekeeper kills it outright, and the process dies with
+exit code 137 and no output at all. Integrity is not weakened: Homebrew has
+already verified the download against the SHA-256 pinned in the cask before
+the attribute is removed.
+
+## Linux / macOS: manual archive download
+
+For anyone who would rather not use a package manager, every release also
+ships plain archives named
+`prune_backups_<version>_<linux|darwin>_<amd64|arm64|386|arm>.tar.gz`, plus a
+`checksums.txt` covering every archive. Verify before installing:
+
+```Shell
+sha256sum --check --ignore-missing checksums.txt   # shasum -a 256 -c on macOS
+tar xzf prune_backups_<version>_<os>_<arch>.tar.gz
+sudo mv prune_backups /usr/local/bin/prune_backups   # or anywhere on your PATH
+```
+
+On macOS a manually downloaded binary is not notarized, so Gatekeeper will
+refuse to run it. Clear the quarantine attribute yourself:
+
+```Shell
+xattr -d com.apple.quarantine prune_backups
 ```
 
 Alternatively, right-click the file in Finder → **Open**, then confirm in
-the Gatekeeper dialog on first run instead of using `xattr`.
+the Gatekeeper dialog on first run. The Homebrew tap above does this step for
+you, which is why it is the recommended route on macOS.
+
+## Windows
+
+Download `prune_backups_<version>_windows_<amd64|arm64|386>.zip` from the
+[releases page](https://github.com/TomTonic/prune_backups/releases), unpack
+it, and place `prune_backups.exe` wherever you like - it's fully
+self-contained, no installer needed. Since the binary isn't code-signed,
+Windows SmartScreen will warn on first run: click **More info** → **Run
+anyway** (or right-click the file → **Properties** → **Unblock**).
 
 ## Build your own executable
 

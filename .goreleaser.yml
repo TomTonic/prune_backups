@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+---
+version: 2
+
+project_name: prune_backups
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  # Split in two so the Linux packages below can be restricted to the
+  # architectures the packaging ecosystems actually support well. Arch Linux
+  # in particular has no 32-bit or armv6 story, and shipping a .pkg.tar.zst
+  # for those would be packaging something nobody can install.
+  - id: main
+    binary: prune_backups
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+
+  - id: legacy
+    binary: prune_backups
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    goos: [linux, windows]
+    goarch: ["386", arm]
+    goarm: ["6"]
+    ignore:
+      - goos: windows
+        goarch: arm
+    ldflags:
+      - -s -w
+
+archives:
+  - formats: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: zip
+
+nfpms:
+  - ids: [main]
+    package_name: prune_backups
+    vendor: TomTonic
+    homepage: https://github.com/TomTonic/prune_backups
+    maintainer: Tom Tonic <tom@tomtonic.de>
+    description: |
+      Prune (cull, weed, thin) incremental backup directories created with
+      rsync or similar tools, keeping one snapshot per hour for a day, one
+      per day for a month, and one per month thereafter.
+    license: MIT
+    section: admin
+    priority: optional
+    formats: [deb, rpm, apk, archlinux]
+    contents:
+      - src: ./README.md
+        dst: /usr/share/doc/prune_backups/README.md
+      - src: ./LICENSE
+        dst: /usr/share/doc/prune_backups/LICENSE
+
+homebrew_casks:
+  - name: prune_backups
+    # No `ids:` filter here - on casks that selects *archive* ids, not build
+    # ids, and the cask pipe already restricts itself to darwin/linux on
+    # amd64/arm64, which is exactly the set the `main` build produces.
+    repository:
+      owner: TomTonic
+      name: homebrew-tap
+      branch: main
+      # Pushed over SSH with a deploy key rather than through the API with a
+      # personal access token: a deploy key is valid for exactly this one
+      # repository and can be revoked on its own. GoReleaser takes the key
+      # material itself here, not a path, and refuses a passphrase-protected
+      # key because the release workflow runs unattended.
+      git:
+        url: git@github.com:TomTonic/homebrew-tap.git
+        private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
+    commit_author:
+      name: Tom Tonic
+      email: tom@tomtonic.de
+    homepage: https://github.com/TomTonic/prune_backups
+    description: Prune incremental backup directories on an hourly/daily/monthly schedule
+    binaries:
+      - prune_backups
+    hooks:
+      post:
+        # Homebrew Cask sets com.apple.quarantine on everything it stages.
+        # These binaries are ad-hoc (linker) signed rather than Developer ID
+        # signed and notarized, so Gatekeeper does not warn - it SIGKILLs the
+        # process, and the tool dies with exit 137 and no output at all.
+        # Clearing the attribute is what makes the cask usable. Integrity is
+        # unaffected: Homebrew has already verified the download against the
+        # sha256 pinned above. must_succeed: false because xattr exits
+        # non-zero when the attribute is absent, as on a re-install.
+        install: |
+          system_command "/usr/bin/xattr",
+                         args: ["-dr", "com.apple.quarantine", "#{staged_path}/prune_backups"],
+                         must_succeed: false
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^deps-upd:'
+      - Merge pull request
+      - Merge branch
