@@ -4,7 +4,7 @@ platform: linux
 version: ${NFPM_VERSION}
 section: admin
 priority: optional
-maintainer: Tom Gelhausen <tom@gelhausen.net>
+maintainer: Tom Tonic <tom@tomtonic.de>
 description: |
   Prune (cull, weed, thin) incremental backup directories created with
   rsync or similar tools, keeping one snapshot per hour for a day, one
