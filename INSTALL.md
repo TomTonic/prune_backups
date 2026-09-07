@@ -110,7 +110,7 @@ your `PATH` at `/opt/homebrew/bin/prune_backups` (Apple silicon) or
 `/usr/local/bin/prune_backups` (Intel).
 
 The cask clears the `com.apple.quarantine` attribute that Homebrew Cask sets
-on everything it stages. Without that, macOS does not merely warn about the
+on everything it stages (via a `postflight_steps` install step). Without that, macOS does not merely warn about the
 un-notarized binary - Gatekeeper kills it outright, and the process dies with
 exit code 137 and no output at all. Integrity is not weakened: Homebrew has
 already verified the download against the SHA-256 pinned in the cask before
