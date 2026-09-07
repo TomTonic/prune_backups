@@ -7,3 +7,8 @@ prune_backups
 
 # Renovate logs
 renovate.log
+# GoReleaser build output. This must stay ignored: prune_backups reads its
+# version from debug.ReadBuildInfo(), which the Go toolchain stamps from the
+# VCS state - an untracked dist/ makes the tree dirty and the release binary
+# then reports "v0.10.5+dirty" to users.
+dist/
