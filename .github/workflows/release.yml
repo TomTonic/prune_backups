@@ -11,73 +11,45 @@ permissions:
 jobs:
   build:
     name: Build and Release
-    # Declare default permissions as write to be allowed to publich artifacts.
     permissions:
-      contents: write
+      contents: write # needed to create the release and upload its assets
     runs-on: ubuntu-latest
-#    strategy:
-#      matrix:
-#        goos: [linux, windows, darwin]
-#        goarch: [amd64, arm64]
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # GoReleaser needs the full history to build the changelog, and the
+          # tags for the version. It also matters for the binary itself: the
+          # version printed by `prune_backups version` comes from
+          # debug.ReadBuildInfo(), which the Go toolchain fills in from the
+          # VCS state of the checkout.
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
 
-      - name: Build Executable
-        # CGO_ENABLED=0 is required, not cosmetic: GOARCH=amd64 on an amd64
-        # runner is not a cross-compile, so cgo stays enabled by default and
-        # the linux/amd64 binary comes out dynamically linked against the
-        # runner's glibc - while every other target cross-compiles and is
-        # static. That asymmetry breaks the premise these packages are built
-        # on ("one package per architecture works on every distro"): the
-        # amd64 build then cannot run on musl distros at all, and fails on
-        # any distro whose glibc is older than the runner's.
-        env:
-          CGO_ENABLED: 0
-        run: |
-          mkdir -p dist
-          GOOS=linux GOARCH=amd64 go build -o dist/prune_backups-amd64-linux .
-          GOOS=linux GOARCH=arm64 go build -o dist/prune_backups-arm64-linux .
-          GOOS=linux GOARCH=386 go build -o dist/prune_backups-x86-linux .
-          GOOS=linux GOARCH=arm go build -o dist/prune_backups-arm-linux .
-          GOOS=windows GOARCH=amd64 go build -o dist/prune_backups-amd64-win.exe .
-          GOOS=windows GOARCH=arm64 go build -o dist/prune_backups-arm64-win.exe .
-          GOOS=windows GOARCH=386 go build -o dist/prune_backups-x86-win.exe .
-          GOOS=darwin GOARCH=amd64 go build -o dist/prune_backups-amd64-mac .
-          GOOS=darwin GOARCH=arm64 go build -o dist/prune_backups-arm64-mac .
-
-      - name: Install nfpm
-        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
-
-      # Builds .deb, .rpm, .apk and .pkg.tar.zst packages from the shared
-      # nfpm.yaml spec, so this single config covers Debian/Ubuntu (and
-      # derivatives like Mint, Pop!_OS, Raspberry Pi OS), Fedora/RHEL/CentOS/
-      # Rocky/Alma/openSUSE, Alpine, and Arch Linux. The binary itself is a
-      # static, CGO-free Go build, so one package per architecture works
-      # across all distro versions supported by the target Go release -
-      # there is no need for per-distro-version builds.
-      - name: Build Linux Packages (deb, rpm, apk, pacman)
-        env:
-          NFPM_VERSION: ${{ github.ref_name }}
-        run: |
-          NFPM_VERSION=${NFPM_VERSION#v}
-          for arch in amd64 arm64; do
-            export NFPM_ARCH=$arch
-            export NFPM_VERSION
-            export NFPM_BIN=dist/prune_backups-${arch}-linux
-            for pkg in deb rpm apk archlinux; do
-              nfpm package --config nfpm.yaml --packager "$pkg" --target dist/
-            done
-          done
-
-      - name: Upload Release Assets
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+      # GoReleaser cross-compiles every target, builds the deb/rpm/apk/
+      # pacman packages, and pushes the Homebrew cask - all from
+      # .goreleaser.yml. CGO_ENABLED=0 is set there per build, and it is
+      # required rather than cosmetic: GOARCH=amd64 on an amd64 runner is not
+      # a cross-compile, so cgo would stay enabled and the linux/amd64 binary
+      # would come out dynamically linked against the runner's glibc, while
+      # every other target cross-compiles and is static. That asymmetry
+      # breaks the premise these packages are built on ("one package per
+      # architecture works on every distro"): the amd64 build then cannot run
+      # on musl distros at all, and fails on any distro whose glibc is older
+      # than the runner's.
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
-          files: |
-            dist/prune_backups-*
-            dist/prune_backups_*
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A deploy key, not a PAT: write-scoped to exactly the one
+          # repository GoReleaser pushes to (the Homebrew tap), and revocable
+          # on its own.
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
