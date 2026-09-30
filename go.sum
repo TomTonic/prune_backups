@@ -1,7 +1,7 @@
 github.com/TomTonic/Set3 v0.4.2 h1:SHtl2H4ujWgf7kAJLcuDHLB87GtEVB0YJDd7bDttifQ=
 github.com/TomTonic/Set3 v0.4.2/go.mod h1:jHb04kRnQ4Pv63d/7Ws95s1S5XYycOmtLfnS5i+RNoc=
-github.com/TomTonic/rtcompare v0.6.0 h1:SqTZ3rIpV65gYmWeTWXjQ6+nBTahglnwDj1p3nV2OD4=
-github.com/TomTonic/rtcompare v0.6.0/go.mod h1:aUrfjhgQaysYUb1weSVaC1TMxXL1IDA+7/K4Waip2Is=
+github.com/TomTonic/rtcompare v0.7.0 h1:74YsNdJrwXLsSt+/P/4taYXLjhUqX8fukuHCT2emZ0g=
+github.com/TomTonic/rtcompare v0.7.0/go.mod h1:ZfN1MRiFIAOuv82DI74n615P917MR0mp2x1pjazZlXY=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
 github.com/alecthomas/assert/v2 v2.11.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/kong v1.16.1 h1:ixhCt93XkJ98kGposQ54+bl0IK6XwqB40AsMynU7Z8E=
