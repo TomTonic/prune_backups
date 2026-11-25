@@ -22,7 +22,7 @@ jobs:
         run: go test ./... -race -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
 
       - name: Generate coverage badge
-        uses: vladopajic/go-test-coverage/action/source@def194de52e1f1a32b000fab870ffa05a66c4258 # v2.22.0
+        uses: vladopajic/go-test-coverage/action/source@6890500b00a7e5862e54662c04ea9fa7c799ce1e # v2.23.0
         with:
           config: ./.testcoverage.yml
           git-branch: badges
